@@ -4224,10 +4224,10 @@ index 0000000..68d3f9c
 +}
 diff --git a/src/Editor/Modals/SoundLibrary/SoundLibrary.jsx b/src/Editor/Modals/SoundLibrary/SoundLibrary.jsx
 new file mode 100644
-index 0000000..bf14777
+index 0000000..1ec5b02
 --- /dev/null
 +++ b/src/Editor/Modals/SoundLibrary/SoundLibrary.jsx
-@@ -0,0 +1,197 @@
+@@ -0,0 +1,207 @@
 +/*
 + * Sound Effects: a library of sounds students can preview and drop onto their
 + * animation. It's the Sounds tab of the Builtin Library (the + button in the
@@ -4243,10 +4243,12 @@ index 0000000..bf14777
 +
 +import React, { Component } from 'react';
 +import cloud from 'cloud/cloud';
++import SoundRecorder from './SoundRecorder';
 +
 +import './_soundlibrary.scss';
 +
 +const CLASS_SOUNDS = 'Class Sounds';
++const RECORD = 'Record';
 +// A tiny silent WAV, played inside the tap so iPad Safari allows the real sound after it loads.
 +const SILENCE = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
 +
@@ -4294,9 +4296,14 @@ index 0000000..bf14777
 +      .catch(e => { console.error('Class sounds:', e); if (!this.unmounted) this.setState({ classSounds: [], classError: true }); });
 +  }
 +
++  defaultCategory = () => {
++    let cats = (this.state.catalog && this.state.catalog.categories) || [];
++    return cats[0] || RECORD;
++  }
++
 +  categories = () => {
 +    let cats = (this.state.catalog && this.state.catalog.categories) || [];
-+    return this.state.classSounds ? [CLASS_SOUNDS].concat(cats) : cats;
++    return [RECORD].concat(this.state.classSounds ? [CLASS_SOUNDS] : [], cats);
 +  }
 +
 +  key = (sound) => sound.id ? 'class:' + sound.id : sound.file;
@@ -4392,7 +4399,10 @@ index 0000000..bf14777
 +
 +  renderList = () => {
 +    let { catalog, classSounds, classError } = this.state;
-+    let category = this.state.category || this.categories()[0];
++    let category = this.state.category || this.defaultCategory();
++    if (category === RECORD) {
++      return <SoundRecorder addLibrarySound={this.props.addLibrarySound} toast={this.props.toast} />;
++    }
 +    if (category === CLASS_SOUNDS) {
 +      if (classError) return <div className='sound-lib-empty'>Couldn't load Class Sounds. Check the Wi-Fi and try again.</div>;
 +      if (!classSounds || classSounds.length === 0) return <div className='sound-lib-empty'>Your teacher hasn't added any class sounds yet.</div>;
@@ -4412,9 +4422,9 @@ index 0000000..bf14777
 +          <React.Fragment>
 +            <div className='sound-lib-categories'>
 +              {this.categories().map(c =>
-+                <button key={c} className={'sound-lib-category' + (c === (category || this.categories()[0]) ? ' sound-lib-category-active' : '') + (c === CLASS_SOUNDS ? ' sound-lib-category-class' : '')}
++                <button key={c} className={'sound-lib-category' + (c === (category || this.defaultCategory()) ? ' sound-lib-category-active' : '') + (c === CLASS_SOUNDS ? ' sound-lib-category-class' : '') + (c === RECORD ? ' sound-lib-category-record' : '')}
 +                  onClick={() => { this.stop(); this.setState({ category: c }); }}>
-+                  {c}
++                  {c === RECORD ? <React.Fragment><span className='sound-lib-rec-dot' />Record</React.Fragment> : c}
 +                </button>)}
 +            </div>
 +            {this.renderList()}
@@ -4425,12 +4435,319 @@ index 0000000..bf14777
 +}
 +
 +export default SoundLibrary;
+diff --git a/src/Editor/Modals/SoundLibrary/SoundRecorder.jsx b/src/Editor/Modals/SoundLibrary/SoundRecorder.jsx
+new file mode 100644
+index 0000000..f503c33
+--- /dev/null
++++ b/src/Editor/Modals/SoundLibrary/SoundRecorder.jsx
+@@ -0,0 +1,301 @@
++/*
++ * Record a sound with the iPad (or computer) microphone and add it to the animation.
++ *
++ * The recording is turned into a mono WAV file, with silence trimmed off the start
++ * and end, so it plays the same on every device and exports with the video.
++ * Browsers only allow the microphone on secure (https) pages.
++ *
++ * This file is part of a modified version of Wick Editor and is licensed
++ * under the GNU General Public License v3 or later.
++ */
++
++import React, { Component } from 'react';
++
++const MAX_SECONDS = 60;
++const SAMPLE_RATE = 22050;
++
++function pickMimeType () {
++  if (!window.MediaRecorder || !window.MediaRecorder.isTypeSupported) return '';
++  let types = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm', 'audio/ogg'];
++  return types.find(t => window.MediaRecorder.isTypeSupported(t)) || '';
++}
++
++function decode (arrayBuffer) {
++  let Ctx = window.AudioContext || window.webkitAudioContext;
++  let ctx = new Ctx();
++  return new Promise((resolve, reject) => {
++    let done = false;
++    let ok = (buf) => { if (!done) { done = true; ctx.close && ctx.close(); resolve(buf); } };
++    let fail = (e) => { if (!done) { done = true; ctx.close && ctx.close(); reject(e || new Error('decode failed')); } };
++    let p = ctx.decodeAudioData(arrayBuffer, ok, fail);
++    if (p && p.then) p.then(ok, fail);
++  });
++}
++
++/** Mixes to mono at SAMPLE_RATE and trims quiet parts at both ends. Returns a Float32Array. */
++function toMonoTrimmed (buffer) {
++  let ratio = buffer.sampleRate / SAMPLE_RATE;
++  let length = Math.floor(buffer.length / ratio);
++  let out = new Float32Array(length);
++  let channels = [];
++  for (let c = 0; c < buffer.numberOfChannels; c++) channels.push(buffer.getChannelData(c));
++  for (let i = 0; i < length; i++) {
++    // average over the source samples that fall in this output sample
++    let start = Math.floor(i * ratio), end = Math.max(start + 1, Math.floor((i + 1) * ratio));
++    let sum = 0, n = 0;
++    for (let j = start; j < end && j < buffer.length; j++) {
++      for (let c = 0; c < channels.length; c++) { sum += channels[c][j]; n++; }
++    }
++    out[i] = n ? sum / n : 0;
++  }
++  let peak = 0;
++  for (let i = 0; i < out.length; i++) peak = Math.max(peak, Math.abs(out[i]));
++  if (peak < 0.003) return out; // nearly silent: keep it as is so the student hears that it's empty
++  let threshold = Math.max(0.01, peak * 0.06);
++  let pad = Math.floor(SAMPLE_RATE * 0.08);
++  let first = 0, last = out.length - 1;
++  while (first < out.length && Math.abs(out[first]) < threshold) first++;
++  while (last > first && Math.abs(out[last]) < threshold) last--;
++  first = Math.max(0, first - pad);
++  last = Math.min(out.length - 1, last + pad * 2);
++  return out.slice(first, last + 1);
++}
++
++function encodeWav (samples) {
++  let buffer = new ArrayBuffer(44 + samples.length * 2);
++  let view = new DataView(buffer);
++  let str = (o, s) => { for (let i = 0; i < s.length; i++) view.setUint8(o + i, s.charCodeAt(i)); };
++  str(0, 'RIFF'); view.setUint32(4, 36 + samples.length * 2, true); str(8, 'WAVE');
++  str(12, 'fmt '); view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
++  view.setUint32(24, SAMPLE_RATE, true); view.setUint32(28, SAMPLE_RATE * 2, true);
++  view.setUint16(32, 2, true); view.setUint16(34, 16, true);
++  str(36, 'data'); view.setUint32(40, samples.length * 2, true);
++  for (let i = 0; i < samples.length; i++) {
++    let s = Math.max(-1, Math.min(1, samples[i]));
++    view.setInt16(44 + i * 2, s < 0 ? s * 0x8000 : s * 0x7fff, true);
++  }
++  return new Blob([buffer], { type: 'audio/wav' });
++}
++
++class SoundRecorder extends Component {
++  constructor (props) {
++    super(props);
++    this.state = { status: 'idle', seconds: 0, error: null, result: null, name: '', playing: false, level: 0 };
++    this.count = 1;
++  }
++
++  componentWillUnmount () {
++    this.unmounted = true;
++    this.cleanupStream();
++    this.stopPreview();
++    if (this.state.result) URL.revokeObjectURL(this.state.result.url);
++  }
++
++  supported () {
++    return !!(window.isSecureContext && navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder);
++  }
++
++  cleanupStream () {
++    clearInterval(this.timer);
++    cancelAnimationFrame(this.meterFrame);
++    if (this.meterCtx) { try { this.meterCtx.close(); } catch (e) {} this.meterCtx = null; }
++    if (this.stream) { this.stream.getTracks().forEach(t => t.stop()); this.stream = null; }
++  }
++
++  start = () => {
++    if (this.state.status === 'recording' || this.state.status === 'asking') return;
++    this.stopPreview();
++    if (this.state.result) { URL.revokeObjectURL(this.state.result.url); }
++    this.setState({ status: 'asking', error: null, result: null, seconds: 0, level: 0 });
++    // Made during the tap so iPad Safari lets it run (it's only used for the level meter).
++    try {
++      let Ctx = window.AudioContext || window.webkitAudioContext;
++      this.meterCtx = new Ctx();
++      if (this.meterCtx.resume) this.meterCtx.resume();
++    } catch (e) { this.meterCtx = null; }
++    navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: true } })
++      .then(stream => {
++        if (this.unmounted) { stream.getTracks().forEach(t => t.stop()); return; }
++        this.stream = stream;
++        this.chunks = [];
++        let type = pickMimeType();
++        let rec = type ? new window.MediaRecorder(stream, { mimeType: type }) : new window.MediaRecorder(stream);
++        this.recorder = rec;
++        rec.ondataavailable = e => { if (e.data && e.data.size) this.chunks.push(e.data); };
++        rec.onstop = this.finish;
++        rec.start(250);
++        this.startedAt = Date.now();
++        this.timer = setInterval(() => {
++          let s = (Date.now() - this.startedAt) / 1000;
++          this.setState({ seconds: s });
++          if (s >= MAX_SECONDS) this.stop();
++        }, 200);
++        this.startMeter(stream);
++        this.setState({ status: 'recording' });
++      })
++      .catch(e => {
++        console.error('Microphone:', e);
++        this.cleanupStream();
++        let denied = e && (e.name === 'NotAllowedError' || e.name === 'SecurityError');
++        this.setState({
++          status: 'idle',
++          error: denied
++            ? 'The microphone is blocked. Tap Allow when the iPad asks. If it never asks, a teacher can turn on the microphone for Safari in Settings.'
++            : 'Couldn\'t start the microphone on this device.',
++        });
++      });
++  }
++
++  startMeter (stream) {
++    try {
++      let ctx = this.meterCtx;
++      if (!ctx) return;
++      if (ctx.state === 'suspended' && ctx.resume) ctx.resume();
++      let src = ctx.createMediaStreamSource(stream);
++      let analyser = ctx.createAnalyser();
++      analyser.fftSize = 512;
++      src.connect(analyser);
++      let data = new Uint8Array(analyser.fftSize);
++      let tick = () => {
++        analyser.getByteTimeDomainData(data);
++        let peak = 0;
++        for (let i = 0; i < data.length; i++) peak = Math.max(peak, Math.abs(data[i] - 128) / 128);
++        if (!this.unmounted) this.setState({ level: peak });
++        this.meterFrame = requestAnimationFrame(tick);
++      };
++      tick();
++    } catch (e) {
++      // the level meter is only a nice extra
++    }
++  }
++
++  stop = () => {
++    if (this.recorder && this.recorder.state !== 'inactive') {
++      this.setState({ status: 'processing' });
++      this.recorder.stop();
++    }
++    clearInterval(this.timer);
++  }
++
++  finish = () => {
++    let type = (this.recorder && this.recorder.mimeType) || (this.chunks[0] && this.chunks[0].type) || '';
++    let raw = new Blob(this.chunks, { type: type });
++    this.cleanupStream();
++    raw.arrayBuffer ? raw.arrayBuffer().then(this.convert) : new Response(raw).arrayBuffer().then(this.convert);
++  }
++
++  convert = (arrayBuffer) => {
++    decode(arrayBuffer)
++      .then(buffer => {
++        let samples = toMonoTrimmed(buffer);
++        let blob = encodeWav(samples);
++        let seconds = samples.length / SAMPLE_RATE;
++        if (this.unmounted) return;
++        this.setState({
++          status: 'done',
++          result: { blob: blob, url: URL.createObjectURL(blob), seconds: seconds },
++          name: this.state.name || 'My Sound ' + this.count,
++        });
++      })
++      .catch(e => {
++        console.error('Recording:', e);
++        if (!this.unmounted) this.setState({ status: 'idle', error: 'Something went wrong with that recording. Try again.' });
++      });
++  }
++
++  togglePreview = () => {
++    if (this.state.playing) { this.stopPreview(); return; }
++    let audio = new Audio(this.state.result.url);
++    this.preview = audio;
++    audio.onended = () => this.stopPreview();
++    audio.play().catch(() => this.stopPreview());
++    this.setState({ playing: true });
++  }
++
++  stopPreview () {
++    if (this.preview) { this.preview.pause(); this.preview = null; }
++    if (this.state.playing && !this.unmounted) this.setState({ playing: false });
++  }
++
++  add = () => {
++    let { result } = this.state;
++    let name = (this.state.name || '').trim() || 'My Sound ' + this.count;
++    let slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'recording';
++    let file = new File([result.blob], slug + '-' + Date.now().toString(36) + '.wav', { type: 'audio/wav' });
++    this.stopPreview();
++    this.props.addLibrarySound(file, name, Math.max(0.1, result.seconds));
++    this.count++;
++    URL.revokeObjectURL(result.url);
++    this.setState({ status: 'idle', result: null, name: '', seconds: 0 });
++  }
++
++  discard = () => {
++    this.stopPreview();
++    if (this.state.result) URL.revokeObjectURL(this.state.result.url);
++    this.setState({ status: 'idle', result: null, seconds: 0 });
++  }
++
++  renderUnsupported () {
++    let insecure = !window.isSecureContext;
++    return (
++      <div className='sound-rec'>
++        <div className='sound-rec-note'>
++          {insecure
++            ? 'Recording needs the secure (https) version of this site, so it isn\'t available here yet.'
++            : 'This browser can\'t record sounds. On an iPad, use Safari or Chrome with an up-to-date iPadOS.'}
++        </div>
++        <div className='sound-rec-tip'>
++          Another way: record in the Voice Memos app, tap ··· then Save to Files, then use the upload button in the Asset Library.
++        </div>
++      </div>
++    );
++  }
++
++  render () {
++    if (!this.supported()) return this.renderUnsupported();
++    let { status, seconds, error, result, name, playing, level } = this.state;
++    let mm = Math.floor(seconds / 60), ss = Math.floor(seconds % 60);
++    let time = mm + ':' + (ss < 10 ? '0' : '') + ss;
++    return (
++      <div className='sound-rec'>
++        {error && <div className='sound-rec-error'>{error}</div>}
++
++        {(status === 'idle' || status === 'asking') &&
++          <React.Fragment>
++            <button className='sound-rec-big sound-rec-start' disabled={status === 'asking'} onClick={this.start} aria-label='Start recording'>
++              <span className='sound-rec-dot' />
++            </button>
++            <div className='sound-rec-label'>{status === 'asking' ? 'Waiting for the microphone...' : 'Tap to record'}</div>
++          </React.Fragment>}
++
++        {status === 'recording' &&
++          <React.Fragment>
++            <button className='sound-rec-big sound-rec-stop' onClick={this.stop} aria-label='Stop recording'>
++              <span className='sound-rec-square' />
++            </button>
++            <div className='sound-rec-time'>{time}</div>
++            <div className='sound-rec-meter'><div style={{ width: Math.min(100, level * 140) + '%' }} /></div>
++            <div className='sound-rec-label'>Recording... tap to stop (up to {MAX_SECONDS} seconds)</div>
++          </React.Fragment>}
++
++        {status === 'processing' && <div className='sound-rec-label'>Getting your sound ready...</div>}
++
++        {status === 'done' && result &&
++          <div className='sound-rec-result'>
++            <div className='sound-lib-item'>
++              <button className='sound-lib-play' aria-label={playing ? 'Stop' : 'Play'} onClick={this.togglePreview}>{playing ? '■' : '▶'}</button>
++              <input className='sound-rec-name' value={name} maxLength={40} onChange={e => this.setState({ name: e.target.value })} aria-label='Sound name' />
++              <span className='sound-lib-length'>{result.seconds < 1 ? 'short' : Math.round(result.seconds) + 's'}</span>
++            </div>
++            <div className='sound-rec-actions'>
++              <button className='sound-lib-add sound-rec-add' onClick={this.add}>Add to my animation</button>
++              <button className='sound-rec-again' onClick={this.discard}>Record again</button>
++            </div>
++          </div>}
++
++      </div>
++    );
++  }
++}
++
++export default SoundRecorder;
 diff --git a/src/Editor/Modals/SoundLibrary/_soundlibrary.scss b/src/Editor/Modals/SoundLibrary/_soundlibrary.scss
 new file mode 100644
-index 0000000..f320032
+index 0000000..0788acc
 --- /dev/null
 +++ b/src/Editor/Modals/SoundLibrary/_soundlibrary.scss
-@@ -0,0 +1,156 @@
+@@ -0,0 +1,248 @@
 +@import 'Editor/_wickbrand.scss';
 +
 +.sound-lib-modal-body {
@@ -4587,6 +4904,98 @@ index 0000000..f320032
 +  overflow-y: auto;
 +  -webkit-overflow-scrolling: touch;
 +}
++
++/* Record tab */
++.sound-lib-category-record {
++  display: inline-flex;
++  align-items: center;
++}
++.sound-lib-rec-dot {
++  width: 12px;
++  height: 12px;
++  border-radius: 50%;
++  background: #ff4d4d;
++  margin-right: 7px;
++  display: inline-block;
++}
++
++.sound-rec {
++  flex: 1;
++  min-height: 0;
++  overflow-y: auto;
++  display: flex;
++  flex-direction: column;
++  align-items: center;
++  padding-top: 18px;
++  color: $editor-modal-text-white;
++  text-align: center;
++}
++.sound-rec-big {
++  width: 110px;
++  height: 110px;
++  border-radius: 50%;
++  border: 6px solid $editor-modal-text-white;
++  background: transparent;
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  cursor: pointer;
++  &:disabled { opacity: 0.5; }
++}
++.sound-rec-dot { width: 70px; height: 70px; border-radius: 50%; background: #ff4d4d; }
++.sound-rec-square { width: 44px; height: 44px; border-radius: 8px; background: #ff4d4d; }
++.sound-rec-stop { animation: sound-rec-pulse 1.2s ease-in-out infinite; }
++@keyframes sound-rec-pulse {
++  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 77, 77, 0.5); }
++  50% { box-shadow: 0 0 0 14px rgba(255, 77, 77, 0); }
++}
++.sound-rec-label { margin-top: 12px; font-size: 16px; }
++.sound-rec-time { margin-top: 10px; font-size: 28px; font-weight: bold; font-variant-numeric: tabular-nums; }
++.sound-rec-meter {
++  width: 220px;
++  height: 10px;
++  border-radius: 5px;
++  background: $editor-modal-dark;
++  margin-top: 8px;
++  overflow: hidden;
++  div { height: 100%; background: $editor-green-highlight; transition: width 0.08s linear; }
++}
++.sound-rec-result { width: 100%; max-width: 460px; }
++.sound-rec-name {
++  flex: 1;
++  min-width: 0;
++  background: $editor-primary;
++  color: $editor-modal-text-white;
++  border: 2px solid transparent;
++  border-radius: 8px;
++  padding: 6px 8px;
++  font-size: 16px;
++  margin: 0 8px;
++  &:focus { outline: none; border-color: $editor-green-highlight; }
++}
++.sound-rec-actions { display: flex; gap: 10px; justify-content: center; margin-top: 14px; flex-wrap: wrap; }
++.sound-rec-add { background: $editor-green-highlight; color: $editor-primary; }
++.sound-rec-again {
++  height: 40px;
++  padding: 0 14px;
++  border-radius: 8px;
++  border: 2px solid $editor-modal-text-white;
++  background: transparent;
++  color: $editor-modal-text-white;
++  font-weight: bold;
++  font-size: 15px;
++  cursor: pointer;
++}
++.sound-rec-error {
++  background: #5a2a2a;
++  color: #ffd6d6;
++  border-radius: 8px;
++  padding: 8px 12px;
++  margin-bottom: 14px;
++  max-width: 520px;
++}
++.sound-rec-note { font-size: 17px; max-width: 520px; margin-bottom: 12px; }
++.sound-rec-tip { font-size: 13px; color: $editor-modal-text-gray; margin-top: 18px; max-width: 520px; }
 diff --git a/src/Editor/Panels/MenuBar/MenuBar.jsx b/src/Editor/Panels/MenuBar/MenuBar.jsx
 index 907061f..379ac2f 100644
 --- a/src/Editor/Panels/MenuBar/MenuBar.jsx
