@@ -1,0 +1,686 @@
+{
+ "categories": [
+  "Cartoon",
+  "Movement",
+  "Hits & Crashes",
+  "Bells & Tones",
+  "Sci-Fi & Game",
+  "Music Bits",
+  "Nature",
+  "Game Blips"
+ ],
+ "sounds": [
+  {
+   "category": "Cartoon",
+   "name": "Boing",
+   "file": "cartoon/boing.mp3",
+   "seconds": 1.1,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Cartoon",
+   "name": "Bonk",
+   "file": "cartoon/bonk.mp3",
+   "seconds": 0.25,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Cartoon",
+   "name": "Pop",
+   "file": "cartoon/pop.mp3",
+   "seconds": 0.12,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Cartoon",
+   "name": "Running Feet",
+   "file": "cartoon/running-feet.mp3",
+   "seconds": 1.3,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Cartoon",
+   "name": "Slide Whistle Down",
+   "file": "cartoon/slide-whistle-down.mp3",
+   "seconds": 0.9,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Cartoon",
+   "name": "Slide Whistle Up",
+   "file": "cartoon/slide-whistle-up.mp3",
+   "seconds": 0.9,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Cartoon",
+   "name": "Spring",
+   "file": "cartoon/spring.mp3",
+   "seconds": 0.7,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Cartoon",
+   "name": "Squeak",
+   "file": "cartoon/squeak.mp3",
+   "seconds": 0.3,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Cartoon",
+   "name": "Wobble",
+   "file": "cartoon/wobble.mp3",
+   "seconds": 1.0,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Cartoon",
+   "name": "Zip",
+   "file": "cartoon/zip.mp3",
+   "seconds": 0.25,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Cartoon",
+   "name": "Zoom Away",
+   "file": "cartoon/zoom-away.mp3",
+   "seconds": 0.7,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Movement",
+   "name": "Fall",
+   "file": "movement/fall.mp3",
+   "seconds": 0.6,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Movement",
+   "name": "Footsteps",
+   "file": "movement/footsteps.mp3",
+   "seconds": 2.2,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Movement",
+   "name": "Jump",
+   "file": "movement/jump.mp3",
+   "seconds": 0.22,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Movement",
+   "name": "Land",
+   "file": "movement/land.mp3",
+   "seconds": 0.4,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Movement",
+   "name": "Swish",
+   "file": "movement/swish.mp3",
+   "seconds": 0.2,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Movement",
+   "name": "Tiptoe",
+   "file": "movement/tiptoe.mp3",
+   "seconds": 1.6,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Movement",
+   "name": "Whoosh Fast",
+   "file": "movement/whoosh-fast.mp3",
+   "seconds": 0.35,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Movement",
+   "name": "Whoosh Slow",
+   "file": "movement/whoosh-slow.mp3",
+   "seconds": 1.0,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Hits & Crashes",
+   "name": "Crash",
+   "file": "hits-crashes/crash.mp3",
+   "seconds": 1.6,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Hits & Crashes",
+   "name": "Explosion",
+   "file": "hits-crashes/explosion.mp3",
+   "seconds": 2.5,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Hits & Crashes",
+   "name": "Glass Clink",
+   "file": "hits-crashes/glass-clink.mp3",
+   "seconds": 1.2,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Hits & Crashes",
+   "name": "Knock Knock",
+   "file": "hits-crashes/knock-knock.mp3",
+   "seconds": 1.0,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Hits & Crashes",
+   "name": "Punch",
+   "file": "hits-crashes/punch.mp3",
+   "seconds": 0.25,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Hits & Crashes",
+   "name": "Splat",
+   "file": "hits-crashes/splat.mp3",
+   "seconds": 0.5,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Hits & Crashes",
+   "name": "Thud",
+   "file": "hits-crashes/thud.mp3",
+   "seconds": 0.5,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Bells & Tones",
+   "name": "Alarm",
+   "file": "bells-tones/alarm.mp3",
+   "seconds": 2.0,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Bells & Tones",
+   "name": "Camera Shutter",
+   "file": "bells-tones/camera-shutter.mp3",
+   "seconds": 0.25,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Bells & Tones",
+   "name": "Chime",
+   "file": "bells-tones/chime.mp3",
+   "seconds": 2.2,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Bells & Tones",
+   "name": "Click",
+   "file": "bells-tones/click.mp3",
+   "seconds": 0.03,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Bells & Tones",
+   "name": "Coin",
+   "file": "bells-tones/coin.mp3",
+   "seconds": 0.5,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Bells & Tones",
+   "name": "Countdown",
+   "file": "bells-tones/countdown.mp3",
+   "seconds": 4.0,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Bells & Tones",
+   "name": "Ding",
+   "file": "bells-tones/ding.mp3",
+   "seconds": 2.0,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Bells & Tones",
+   "name": "Fail (Wah Wah)",
+   "file": "bells-tones/fail-wah-wah.mp3",
+   "seconds": 2.4,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Bells & Tones",
+   "name": "Magic Sparkle",
+   "file": "bells-tones/magic-sparkle.mp3",
+   "seconds": 1.8,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Bells & Tones",
+   "name": "Success",
+   "file": "bells-tones/success.mp3",
+   "seconds": 1.2,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Sci-Fi & Game",
+   "name": "Game Over",
+   "file": "sci-fi-game/game-over.mp3",
+   "seconds": 1.6,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Sci-Fi & Game",
+   "name": "Laser",
+   "file": "sci-fi-game/laser.mp3",
+   "seconds": 0.3,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Sci-Fi & Game",
+   "name": "Laser Blast",
+   "file": "sci-fi-game/laser-blast.mp3",
+   "seconds": 0.45,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Sci-Fi & Game",
+   "name": "Power Down",
+   "file": "sci-fi-game/power-down.mp3",
+   "seconds": 1.0,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Sci-Fi & Game",
+   "name": "Power Up",
+   "file": "sci-fi-game/power-up.mp3",
+   "seconds": 0.49,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Sci-Fi & Game",
+   "name": "Robot Beeps",
+   "file": "sci-fi-game/robot-beeps.mp3",
+   "seconds": 1.08,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Sci-Fi & Game",
+   "name": "Teleport",
+   "file": "sci-fi-game/teleport.mp3",
+   "seconds": 1.2,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Sci-Fi & Game",
+   "name": "Warp",
+   "file": "sci-fi-game/warp.mp3",
+   "seconds": 2.0,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Music Bits",
+   "name": "Ba Dum Tss",
+   "file": "music-bits/ba-dum-tss.mp3",
+   "seconds": 1.5,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Music Bits",
+   "name": "Clap",
+   "file": "music-bits/clap.mp3",
+   "seconds": 0.3,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Music Bits",
+   "name": "Cymbal",
+   "file": "music-bits/cymbal.mp3",
+   "seconds": 2.0,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Music Bits",
+   "name": "Drum Roll",
+   "file": "music-bits/drum-roll.mp3",
+   "seconds": 2.6,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Music Bits",
+   "name": "Heartbeat",
+   "file": "music-bits/heartbeat.mp3",
+   "seconds": 2.0,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Music Bits",
+   "name": "Kick Drum",
+   "file": "music-bits/kick-drum.mp3",
+   "seconds": 0.45,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Music Bits",
+   "name": "Tick Tock",
+   "file": "music-bits/tick-tock.mp3",
+   "seconds": 4.0,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Nature",
+   "name": "Bubbles",
+   "file": "nature/bubbles.mp3",
+   "seconds": 1.6,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Nature",
+   "name": "Campfire",
+   "file": "nature/campfire.mp3",
+   "seconds": 4.0,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Nature",
+   "name": "Rain",
+   "file": "nature/rain.mp3",
+   "seconds": 5.0,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Nature",
+   "name": "Thunder",
+   "file": "nature/thunder.mp3",
+   "seconds": 4.0,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Nature",
+   "name": "Water Drop",
+   "file": "nature/water-drop.mp3",
+   "seconds": 0.2,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Nature",
+   "name": "Wind",
+   "file": "nature/wind.mp3",
+   "seconds": 5.0,
+   "credit": "Original sound made for this site",
+   "license": "CC0"
+  },
+  {
+   "category": "Game Blips",
+   "name": "Beep 1",
+   "file": "game-blips/beep1.mp3",
+   "seconds": 0.76,
+   "credit": "User pan14 on Freesound.org",
+   "license": "CC0",
+   "link": "https://freesound.org/people/pan14/sounds/263128/"
+  },
+  {
+   "category": "Game Blips",
+   "name": "Beep 2",
+   "file": "game-blips/beep2.mp3",
+   "seconds": 0.34,
+   "credit": "User pan14 on Freesound.org",
+   "license": "CC0",
+   "link": "https://freesound.org/people/pan14/sounds/263126/"
+  },
+  {
+   "category": "Game Blips",
+   "name": "Blip 1",
+   "file": "game-blips/blip1.mp3",
+   "seconds": 0.21,
+   "credit": "User Raclure on Freesound.org",
+   "license": "CC0",
+   "link": "https://freesound.org/people/Raclure/sounds/405546/"
+  },
+  {
+   "category": "Game Blips",
+   "name": "Blip 2",
+   "file": "game-blips/blip2.mp3",
+   "seconds": 0.31,
+   "credit": "User Leszek_Szary on Freesound.org",
+   "license": "CC0",
+   "link": "https://freesound.org/people/Leszek_Szary/sounds/146727/"
+  },
+  {
+   "category": "Game Blips",
+   "name": "Blip 3",
+   "file": "game-blips/blip3.mp3",
+   "seconds": 0.37,
+   "credit": "User pan14 on Freesound.org",
+   "license": "CC0",
+   "link": "https://freesound.org/people/pan14/sounds/263132/"
+  },
+  {
+   "category": "Game Blips",
+   "name": "Blip 4",
+   "file": "game-blips/blip4.mp3",
+   "seconds": 0.42,
+   "credit": "User pan14 on Freesound.org",
+   "license": "CC0",
+   "link": "https://freesound.org/people/pan14/sounds/263124/"
+  },
+  {
+   "category": "Game Blips",
+   "name": "Blip 5",
+   "file": "game-blips/blip5.mp3",
+   "seconds": 0.31,
+   "credit": "User pan14 on Freesound.org",
+   "license": "CC0",
+   "link": "https://freesound.org/people/pan14/sounds/263129/"
+  },
+  {
+   "category": "Game Blips",
+   "name": "Click 1",
+   "file": "game-blips/click1.mp3",
+   "seconds": 0.05,
+   "credit": "User Raclure on Freesound.org",
+   "license": "CC0",
+   "link": "https://freesound.org/people/Raclure/sounds/483600/"
+  },
+  {
+   "category": "Game Blips",
+   "name": "Fwipp",
+   "file": "game-blips/fwipp.mp3",
+   "seconds": 0.21,
+   "credit": "User Raclure on Freesound.org",
+   "license": "CC0",
+   "link": "https://freesound.org/people/Raclure/sounds/405547/"
+  },
+  {
+   "category": "Game Blips",
+   "name": "Game Bump 1",
+   "file": "game-blips/gameBump1.mp3",
+   "seconds": 0.24,
+   "credit": "User Raclure on Freesound.org",
+   "license": "CC0",
+   "link": "https://freesound.org/people/Raclure/sounds/483602/"
+  },
+  {
+   "category": "Game Blips",
+   "name": "Long Beep 1",
+   "file": "game-blips/longBeep1.mp3",
+   "seconds": 8.72,
+   "credit": "User pan14 on Freesound.org",
+   "license": "CC0",
+   "link": "https://freesound.org/people/pan14/sounds/263130/"
+  },
+  {
+   "category": "Game Blips",
+   "name": "Long Beep 2",
+   "file": "game-blips/longBeep2.mp3",
+   "seconds": 7.08,
+   "credit": "User pan14 on Freesound.org",
+   "license": "CC0",
+   "link": "https://freesound.org/people/pan14/sounds/263127/"
+  },
+  {
+   "category": "Game Blips",
+   "name": "Poof",
+   "file": "game-blips/poof.mp3",
+   "seconds": 0.96,
+   "credit": "User: Planman on Freesound.org",
+   "license": "CC0",
+   "link": "https://freesound.org/people/Planman/sounds/208111/"
+  },
+  {
+   "category": "Game Blips",
+   "name": "Stone 1",
+   "file": "game-blips/stone1.mp3",
+   "seconds": 0.68,
+   "credit": "User: Mediaman57 on Freesound.org",
+   "license": "CC0",
+   "link": "https://freesound.org/people/Mediaman57/sounds/347149/"
+  },
+  {
+   "category": "Game Blips",
+   "name": "Stone 2",
+   "file": "game-blips/stone2.mp3",
+   "seconds": 3.11,
+   "credit": "User: ertfelda on Freesound.org",
+   "license": "CC0",
+   "link": "https://freesound.org/people/ertfelda/sounds/243699/"
+  },
+  {
+   "category": "Game Blips",
+   "name": "Thump",
+   "file": "game-blips/thump.mp3",
+   "seconds": 0.34,
+   "credit": "User OtisJames on Freesound.org",
+   "license": "CC0",
+   "link": "https://freesound.org/people/OtisJames/sounds/249613/"
+  },
+  {
+   "category": "Game Blips",
+   "name": "Thunk",
+   "file": "game-blips/thunk.mp3",
+   "seconds": 0.29,
+   "credit": "User jameswrowles on Freesound.org",
+   "license": "CC0",
+   "link": "https://freesound.org/people/jameswrowles/sounds/380640/"
+  },
+  {
+   "category": "Game Blips",
+   "name": "Woop 1",
+   "file": "game-blips/woop1.mp3",
+   "seconds": 0.26,
+   "credit": "User Raclure on Freesound.org",
+   "license": "CC0",
+   "link": "https://freesound.org/people/Raclure/sounds/483604/"
+  },
+  {
+   "category": "Game Blips",
+   "name": "Woop 2",
+   "file": "game-blips/woop2.mp3",
+   "seconds": 0.31,
+   "credit": "User Raclure on Freesound.org",
+   "license": "CC0",
+   "link": "https://freesound.org/people/Raclure/sounds/483603/"
+  },
+  {
+   "category": "Game Blips",
+   "name": "Woop 3",
+   "file": "game-blips/woop3.mp3",
+   "seconds": 0.24,
+   "credit": "User Raclure on Freesound.org",
+   "license": "CC0",
+   "link": "https://freesound.org/people/Raclure/sounds/405548/"
+  },
+  {
+   "category": "Game Blips",
+   "name": "Woosh",
+   "file": "game-blips/woosh.mp3",
+   "seconds": 0.94,
+   "credit": "User freakinbehemoth on Freesound.org",
+   "license": "CC0",
+   "link": "https://freesound.org/people/freakinbehemoth/sounds/243400/"
+  },
+  {
+   "category": "Game Blips",
+   "name": "Wrong 1",
+   "file": "game-blips/wrong1.mp3",
+   "seconds": 0.31,
+   "credit": "User Raclure on Freesound.org",
+   "license": "CC0",
+   "link": "https://freesound.org/people/Raclure/sounds/483598/"
+  },
+  {
+   "category": "Game Blips",
+   "name": "Wrong 2",
+   "file": "game-blips/wrong2.mp3",
+   "seconds": 1.28,
+   "credit": "User pan14 on Freesound.org",
+   "license": "CC0",
+   "link": "https://freesound.org/people/pan14/sounds/263123/"
+  },
+  {
+   "category": "Game Blips",
+   "name": "Zhoop",
+   "file": "game-blips/zhoop.mp3",
+   "seconds": 0.73,
+   "credit": "User Raclure on Freesound.org",
+   "license": "CC0",
+   "link": "https://freesound.org/people/Raclure/sounds/483608/"
+  }
+ ]
+}
