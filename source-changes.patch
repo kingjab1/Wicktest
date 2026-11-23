@@ -871,28 +871,30 @@ index 8a95456..fe60cc2 100644
        homescreen on Android. See https://developers.google.com/web/fundamentals/web-app-manifest/
 diff --git a/public/sounds/README.md b/public/sounds/README.md
 new file mode 100644
-index 0000000..0670b24
+index 0000000..02edb52
 --- /dev/null
 +++ b/public/sounds/README.md
-@@ -0,0 +1,10 @@
+@@ -0,0 +1,11 @@
 +# Sound library
 +
-+Sounds for the editor's Sound Effects panel. Everything here can be shared freely:
++Sounds for the editor's Sound Effects panel.
 +
-+- Every category except **Game Blips** was generated from scratch by `synth.py` for this site and is released under CC0 (public domain).
++- **Memes** are meme sounds the site owner added from his own collection. They are not CC0.
++- Every other category except **Game Blips** was generated from scratch by `synth.py` for this site and is released under CC0 (public domain).
 +- **Game Blips** are the sounds that ship with the Wick Editor. Each is CC0 from Freesound.org; the credit and link for each one are in `catalog.json`.
 +
-+Don't add sounds here unless their license allows redistribution (CC0 or similar). A sound pack you bought for your own use usually doesn't.
++A sound pack you bought for your own use usually can't be posted here; check its license first.
 +
 +To add a sound: put the `.mp3` in a category folder and add an entry to `catalog.json` (`category`, `name`, `file`, `seconds`, `credit`, `license`).
 diff --git a/public/sounds/catalog.json b/public/sounds/catalog.json
 new file mode 100644
-index 0000000..7a088f1
+index 0000000..212f99c
 --- /dev/null
 +++ b/public/sounds/catalog.json
-@@ -0,0 +1,686 @@
+@@ -0,0 +1,1191 @@
 +{
 + "categories": [
++  "Memes",
 +  "Cartoon",
 +  "Movement",
 +  "Hits & Crashes",
@@ -903,6 +905,510 @@ index 0000000..7a088f1
 +  "Game Blips"
 + ],
 + "sounds": [
++  {
++   "category": "Memes",
++   "name": "2000 Years Later",
++   "file": "memes/2000-years-later.mp3",
++   "seconds": 3.6,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "67",
++   "file": "memes/67.mp3",
++   "seconds": 1.0,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Ack",
++   "file": "memes/ack.mp3",
++   "seconds": 5.0,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Applause",
++   "file": "memes/applause.mp3",
++   "seconds": 7.1,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Are You Out of Your Mind",
++   "file": "memes/are-you-out-of-your-mind.mp3",
++   "seconds": 3.0,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Aura",
++   "file": "memes/aura.mp3",
++   "seconds": 12.9,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Baby Boo",
++   "file": "memes/baby-boo.mp3",
++   "seconds": 2.4,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Baby Laugh",
++   "file": "memes/baby-laugh.mp3",
++   "seconds": 6.6,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Bo Womp",
++   "file": "memes/bo-womp.mp3",
++   "seconds": 1.0,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Bombastic Side Eye",
++   "file": "memes/bombastic-side-eye.mp3",
++   "seconds": 6.4,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Bone Crack",
++   "file": "memes/bone-crack.mp3",
++   "seconds": 1.1,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Bruh",
++   "file": "memes/bruh.mp3",
++   "seconds": 0.9,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Buzzer",
++   "file": "memes/buzzer.mp3",
++   "seconds": 1.2,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Cat Laugh",
++   "file": "memes/cat-laugh.mp3",
++   "seconds": 3.6,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Crickets",
++   "file": "memes/crickets.mp3",
++   "seconds": 5.4,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Crowd Gasp",
++   "file": "memes/crowd-gasp.mp3",
++   "seconds": 1.1,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Dexter",
++   "file": "memes/dexter.mp3",
++   "seconds": 10.7,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Didn't Have To",
++   "file": "memes/didn-t-have-to.mp3",
++   "seconds": 19.0,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Discord Notification",
++   "file": "memes/discord-notification.mp3",
++   "seconds": 0.5,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Elevator Music",
++   "file": "memes/elevator-music.mp3",
++   "seconds": 10.7,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Error",
++   "file": "memes/error.mp3",
++   "seconds": 1.0,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Get Out",
++   "file": "memes/get-out.mp3",
++   "seconds": 1.0,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Goku Drip",
++   "file": "memes/goku-drip.mp3",
++   "seconds": 4.9,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Happy Happy Happy",
++   "file": "memes/happy-happy-happy.mp3",
++   "seconds": 7.5,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Helicopter Helicopter",
++   "file": "memes/helicopter-helicopter.mp3",
++   "seconds": 10.1,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Huh?",
++   "file": "memes/huh.mp3",
++   "seconds": 0.3,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "iPhone Notification",
++   "file": "memes/iphone-notification.mp3",
++   "seconds": 4.7,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "JJK Battle",
++   "file": "memes/jjk-battle.mp3",
++   "seconds": 18.1,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Lightsaber On",
++   "file": "memes/lightsaber-on.mp3",
++   "seconds": 2.8,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Lizard",
++   "file": "memes/lizard.mp3",
++   "seconds": 1.0,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Lizard Repeat",
++   "file": "memes/lizard-repeat.mp3",
++   "seconds": 10.3,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Mario Coin",
++   "file": "memes/mario-coin.mp3",
++   "seconds": 2.0,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Minecraft Eating",
++   "file": "memes/minecraft-eating.mp3",
++   "seconds": 1.7,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Minecraft Hurt",
++   "file": "memes/minecraft-hurt.mp3",
++   "seconds": 0.4,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Mouse Click",
++   "file": "memes/mouse-click.mp3",
++   "seconds": 1.5,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Moving Stone",
++   "file": "memes/moving-stone.mp3",
++   "seconds": 1.8,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Mr Krabs Walking",
++   "file": "memes/mr-krabs-walking.mp3",
++   "seconds": 2.1,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Oh My God",
++   "file": "memes/oh-my-god.mp3",
++   "seconds": 1.7,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "OIIA OIIA",
++   "file": "memes/oiia-oiia.mp3",
++   "seconds": 5.7,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Price Is Wrong",
++   "file": "memes/price-is-wrong.mp3",
++   "seconds": 5.1,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Rizz",
++   "file": "memes/rizz.mp3",
++   "seconds": 1.9,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Rizzbot Laugh",
++   "file": "memes/rizzbot-laugh.mp3",
++   "seconds": 2.4,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Romance",
++   "file": "memes/romance.mp3",
++   "seconds": 5.9,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Run!",
++   "file": "memes/run.mp3",
++   "seconds": 8.3,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Sad Meow Song",
++   "file": "memes/sad-meow-song.mp3",
++   "seconds": 25.1,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Screaming Tree Chicken",
++   "file": "memes/screaming-tree-chicken.mp3",
++   "seconds": 5.7,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Snore (Mimimimi)",
++   "file": "memes/snore-mimimimi.mp3",
++   "seconds": 5.7,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Sponge Stank",
++   "file": "memes/sponge-stank.mp3",
++   "seconds": 2.7,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "SpongeBob Fail",
++   "file": "memes/spongebob-fail.mp3",
++   "seconds": 3.4,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "SpongeBob Walking",
++   "file": "memes/spongebob-walking.mp3",
++   "seconds": 5.7,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Squidward Walking",
++   "file": "memes/squidward-walking.mp3",
++   "seconds": 3.5,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Super Mario Lose",
++   "file": "memes/super-mario-lose.mp3",
++   "seconds": 9.9,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Taco Bell",
++   "file": "memes/taco-bell.mp3",
++   "seconds": 2.0,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "The Undertaker",
++   "file": "memes/the-undertaker.mp3",
++   "seconds": 4.2,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Vine Boom",
++   "file": "memes/vine-boom.mp3",
++   "seconds": 1.3,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Vine Boom (Bass)",
++   "file": "memes/vine-boom-bass.mp3",
++   "seconds": 3.5,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Vine Boom (Longer)",
++   "file": "memes/vine-boom-longer.mp3",
++   "seconds": 3.1,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Weave",
++   "file": "memes/weave.mp3",
++   "seconds": 0.6,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "What Bottom Text",
++   "file": "memes/what-bottom-text.mp3",
++   "seconds": 9.0,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Windows XP Shutdown",
++   "file": "memes/windows-xp-shutdown.mp3",
++   "seconds": 3.3,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Wow",
++   "file": "memes/wow.mp3",
++   "seconds": 4.2,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Yaaay",
++   "file": "memes/yaaay.mp3",
++   "seconds": 8.2,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
++  {
++   "category": "Memes",
++   "name": "Yoshi Tongue",
++   "file": "memes/yoshi-tongue.mp3",
++   "seconds": 0.2,
++   "credit": "Meme sound",
++   "license": "Added by the teacher"
++  },
 +  {
 +   "category": "Cartoon",
 +   "name": "Boing",
@@ -3102,6 +3608,437 @@ index 6c1b02e..f440557 100644
        className={classNames("wick-button ", props.className)}>
        {props.children}
      </button>
+diff --git a/src/cloud/cloud.js b/src/cloud/cloud.js
+new file mode 100644
+index 0000000..9785ff0
+--- /dev/null
++++ b/src/cloud/cloud.js
+@@ -0,0 +1,425 @@
++/*
++ * Cloud saves, student logins and Learn publishing, backed by Firebase
++ * (Authentication + Cloud Firestore, both on the free Spark plan).
++ *
++ * Nothing here runs unless /cloud-config.json exists and has a projectId.
++ * Firebase's browser SDK is self-hosted in /corelibs/firebase so the only
++ * outside addresses are Google's API hosts.
++ *
++ * Data layout (see firestore.rules in the site repo):
++ *   teachers/{uid}            exists = this account is a teacher (added by hand in the Firebase console)
++ *   classes/{classId}         { name, students: [{ label, email }] }   readable by anyone (no names, just "Blue Fox")
++ *   classSecrets/{classId}    { pins: { label: pin } }                  teacher only, so cards can be reprinted
++ *   students/{uid}            { classId, label }
++ *   projects/{id}             { owner, classId, label, title, thumb, version, chunkCount, size, updatedAt }
++ *   projects/{id}/chunks/{v_i}{ data }   the .wick file as base64, split to fit Firestore's 1 MB document limit
++ *   learn/{id}                { title, description, principles, tags, preview, version, chunkCount, order, updatedAt }
++ *   learn/{id}/chunks/{v_i}   { data }
++ *   classSounds/{id}          { name, seconds, type, version, chunkCount }   signed-in users read, teacher writes
++ *   classSounds/{id}/chunks/{v_i} { data }
++ *
++ * This file is part of a modified version of Wick Editor and is licensed
++ * under the GNU General Public License v3 or later.
++ */
++
++const CHUNK = 700000;          // characters of base64 per chunk document
++const MAX_BYTES = 15 * 1024 * 1024;
++const STUDENT_DOMAIN = 'student.animate.invalid';
++
++const COLORS = ['Red', 'Orange', 'Yellow', 'Green', 'Blue', 'Purple', 'Pink', 'Silver'];
++const ANIMALS = [
++  ['Fox', '\u{1F98A}'], ['Cat', '\u{1F431}'], ['Dog', '\u{1F436}'], ['Frog', '\u{1F438}'], ['Owl', '\u{1F989}'],
++  ['Bear', '\u{1F43B}'], ['Lion', '\u{1F981}'], ['Tiger', '\u{1F42F}'], ['Panda', '\u{1F43C}'], ['Koala', '\u{1F428}'],
++  ['Monkey', '\u{1F435}'], ['Rabbit', '\u{1F430}'], ['Penguin', '\u{1F427}'], ['Turtle', '\u{1F422}'], ['Octopus', '\u{1F419}'],
++  ['Whale', '\u{1F433}'], ['Dragon', '\u{1F409}'], ['Unicorn', '\u{1F984}'], ['Bee', '\u{1F41D}'], ['Snail', '\u{1F40C}'],
++  ['Shark', '\u{1F988}'], ['Parrot', '\u{1F99C}'], ['Hedgehog', '\u{1F994}'], ['Crab', '\u{1F980}'],
++];
++const COLOR_HEX = { Red: '#ff6b6b', Orange: '#ffa94d', Yellow: '#ffd43b', Green: '#69db7c', Blue: '#4dabf7', Purple: '#b197fc', Pink: '#f783ac', Silver: '#ced4da' };
++
++let configPromise = null;
++let sdkPromise = null;
++let app = null, auth = null, db = null, cloudConfig = null;
++let currentUser = null;           // { uid, role, classId, label, email }
++let ready = false;
++const listeners = new Set();
++
++function publicUrl () { return process.env.PUBLIC_URL || ''; }
++
++function loadScript (src) {
++  return new Promise((resolve, reject) => {
++    let s = document.createElement('script');
++    s.src = src; s.async = true;
++    s.onload = resolve;
++    s.onerror = () => reject(new Error('Could not load ' + src));
++    document.head.appendChild(s);
++  });
++}
++
++function getConfig () {
++  if (!configPromise) {
++    if (window.__cloudBackendOverride) return Promise.resolve({ override: true });
++    configPromise = fetch(publicUrl() + '/cloud-config.json?t=' + Date.now())
++      .then(r => (r.ok ? r.json() : null))
++      .then(c => (c && c.projectId && c.apiKey ? c : null))
++      .catch(() => null);
++  }
++  return configPromise;
++}
++
++function init () {
++  if (sdkPromise) return sdkPromise;
++  sdkPromise = getConfig().then(config => {
++    if (!config) return false;
++    if (config.override) return true;
++    let base = publicUrl() + '/corelibs/firebase/';
++    return loadScript(base + 'firebase-app-compat.js')
++      .then(() => Promise.all([loadScript(base + 'firebase-auth-compat.js'), loadScript(base + 'firebase-firestore-compat.js')]))
++      .then(() => {
++        let fb = window.firebase;
++        cloudConfig = config;
++        app = fb.initializeApp(config);
++        auth = app.auth();
++        db = app.firestore();
++        if (config.authEmulator) auth.useEmulator(config.authEmulator);
++        if (config.firestoreEmulator) { let [h, p] = config.firestoreEmulator.split(':'); db.useEmulator(h, Number(p)); }
++        // Long polling is more reliable than WebChannel streaming on filtered school networks.
++        try { db.settings({ experimentalAutoDetectLongPolling: true, merge: true }); } catch (e) { /* settings already applied */ }
++        return new Promise(resolve => {
++          auth.onAuthStateChanged(user => {
++            describeUser(user).then(u => {
++              currentUser = u; ready = true;
++              listeners.forEach(cb => cb(currentUser));
++              resolve(true);
++            });
++          });
++        });
++      });
++  }).catch(e => { console.error('cloud init failed', e); return false; });
++  return sdkPromise;
++}
++
++function B () { return window.__cloudBackendOverride; }
++
++function describeUser (user) {
++  if (!user) return Promise.resolve(null);
++  return Promise.all([
++    db.collection('teachers').doc(user.uid).get().catch(() => null),
++    db.collection('students').doc(user.uid).get().catch(() => null),
++  ]).then(([t, s]) => {
++    if (t && t.exists) return { uid: user.uid, role: 'teacher', email: user.email, label: 'Teacher' };
++    if (s && s.exists) return Object.assign({ uid: user.uid, role: 'student' }, s.data());
++    return { uid: user.uid, role: 'none', email: user.email };
++  });
++}
++
++/* ---------- helpers ---------- */
++
++function slug (s) { return String(s).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); }
++function randomId (n) {
++  let chars = 'abcdefghijkmnpqrstuvwxyz23456789', out = '';
++  let bytes = new Uint8Array(n); window.crypto.getRandomValues(bytes);
++  for (let i = 0; i < n; i++) out += chars[bytes[i] % chars.length];
++  return out;
++}
++function randomPin () {
++  let b = new Uint32Array(1); window.crypto.getRandomValues(b);
++  return String(b[0] % 10000).padStart(4, '0');
++}
++function passwordFor (label, pin) { return 'wick-' + pin + '-' + slug(label); }
++
++function blobToBase64 (blob) {
++  return new Promise((resolve, reject) => {
++    let r = new FileReader();
++    r.onload = () => resolve(String(r.result).split(',')[1] || '');
++    r.onerror = reject;
++    r.readAsDataURL(blob);
++  });
++}
++function base64ToBlob (b64, type) {
++  let bin = atob(b64), bytes = new Uint8Array(bin.length);
++  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
++  return new Blob([bytes], { type: type || 'application/zip' });
++}
++
++// Write a file as versioned chunks under docRef/chunks, then point the meta doc at the new version,
++// then remove the previous version's chunks. A failed upload leaves the old version intact.
++async function writeChunked (docRef, meta, blob) {
++  if (blob.size > MAX_BYTES) throw new Error('too-big');
++  let b64 = await blobToBase64(blob);
++  let version = randomId(6);
++  let pieces = [];
++  for (let i = 0; i < b64.length; i += CHUNK) pieces.push(b64.slice(i, i + CHUNK));
++  let old = await docRef.get();
++  let oldVersion = old.exists ? old.data().version : null;
++  let oldCount = old.exists ? old.data().chunkCount || 0 : 0;
++  // Meta first (rules check the parent doc when writing chunks).
++  let firstMeta = Object.assign({}, meta, { updatedAt: window.firebase.firestore.FieldValue.serverTimestamp() });
++  if (!old.exists) Object.assign(firstMeta, { version: null, chunkCount: 0 });
++  await docRef.set(firstMeta, { merge: true });
++  for (let i = 0; i < pieces.length; i++) {
++    await docRef.collection('chunks').doc(version + '_' + i).set({ data: pieces[i] });
++  }
++  await docRef.set({ version: version, chunkCount: pieces.length, size: blob.size, updatedAt: window.firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
++  if (oldVersion) {
++    for (let i = 0; i < oldCount; i++) await docRef.collection('chunks').doc(oldVersion + '_' + i).delete().catch(() => {});
++  }
++  return docRef.id;
++}
++
++async function readChunked (docRef) {
++  let meta = await docRef.get();
++  if (!meta.exists) throw new Error('not-found');
++  let { version, chunkCount, type } = meta.data();
++  let reads = [];
++  for (let i = 0; i < chunkCount; i++) reads.push(docRef.collection('chunks').doc(version + '_' + i).get());
++  let parts = (await Promise.all(reads)).map(c => c.data().data);
++  return base64ToBlob(parts.join(''), type);
++}
++
++async function deleteChunked (docRef) {
++  let meta = await docRef.get();
++  if (!meta.exists) return;
++  let { version, chunkCount } = meta.data();
++  for (let i = 0; i < (chunkCount || 0); i++) await docRef.collection('chunks').doc(version + '_' + i).delete().catch(() => {});
++  await docRef.delete();
++}
++
++function tsToMillis (t) { return t && t.toMillis ? t.toMillis() : (typeof t === 'number' ? t : 0); }
++
++/* ---------- public API ---------- */
++
++const cloud = {
++  COLORS, ANIMALS, COLOR_HEX,
++
++  /** Resolves true if cloud features are configured and the SDK loaded. */
++  enabled () { return B() ? Promise.resolve(true) : init(); },
++
++  user () { return B() ? B().user() : currentUser; },
++
++  /** Calls cb(user) now (once ready) and whenever the signed-in user changes. Returns an unsubscribe function. */
++  onUserChange (cb) {
++    if (B()) return B().onUserChange(cb);
++    listeners.add(cb);
++    if (ready) cb(currentUser);
++    return () => listeners.delete(cb);
++  },
++
++  pictureFor (label) {
++    let [color, animal] = String(label).split(' ');
++    let a = ANIMALS.find(x => x[0] === animal);
++    return { emoji: a ? a[1] : '⭐', color: COLOR_HEX[color] || '#ccc' };
++  },
++
++  /* ----- sign in / out ----- */
++
++  async listClasses () {
++    if (B()) return B().listClasses();
++    let snap = await db.collection('classes').orderBy('name').get();
++    return snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
++  },
++
++  async studentSignIn (classId, label, pin) {
++    if (B()) return B().studentSignIn(classId, label, pin);
++    let cls = await db.collection('classes').doc(classId).get();
++    let entry = cls.exists && (cls.data().students || []).find(s => s.label === label);
++    if (!entry) throw new Error('not-found');
++    await auth.signInWithEmailAndPassword(entry.email, passwordFor(label, pin));
++  },
++
++  async teacherSignIn (email, password) {
++    if (B()) return B().teacherSignIn(email, password);
++    await auth.signInWithEmailAndPassword(email, password);
++  },
++
++  /** First-time setup. Returns the new account's uid, which goes into teachers/{uid} in the Firebase console. */
++  async teacherCreateAccount (email, password) {
++    if (B()) return B().teacherCreateAccount(email, password);
++    let cred = await auth.createUserWithEmailAndPassword(email, password);
++    return cred.user.uid;
++  },
++
++  signOut () { return B() ? B().signOut() : auth.signOut(); },
++
++  /* ----- classes (teacher) ----- */
++
++  async createClass (name) {
++    if (B()) return B().createClass(name);
++    let ref = db.collection('classes').doc(slug(name).slice(0, 20) + '-' + randomId(4));
++    await ref.set({ name: name, students: [], createdAt: window.firebase.firestore.FieldValue.serverTimestamp() });
++    await db.collection('classSecrets').doc(ref.id).set({ pins: {} });
++    return ref.id;
++  },
++
++  async getClassSecrets (classId) {
++    if (B()) return B().getClassSecrets(classId);
++    let s = await db.collection('classSecrets').doc(classId).get();
++    return s.exists ? s.data().pins || {} : {};
++  },
++
++  /** Creates a student login with a new PIN. Uses a second Firebase app so the teacher stays signed in. */
++  async _makeStudentLogin (classId, label, gen) {
++    let pin = randomPin();
++    let email = 's-' + classId + '-' + slug(label) + (gen ? '-' + gen : '') + '@' + STUDENT_DOMAIN;
++    let maker = window.firebase.apps.find(a => a.name === 'student-maker') || window.firebase.initializeApp(cloudConfig, 'student-maker');
++    let makerAuth = maker.auth();
++    if (cloudConfig.authEmulator) { try { makerAuth.useEmulator(cloudConfig.authEmulator); } catch (e) { /* already set */ } }
++    let cred = await makerAuth.createUserWithEmailAndPassword(email, passwordFor(label, pin));
++    let uid = cred.user.uid;
++    await makerAuth.signOut();
++    await db.collection('students').doc(uid).set({ classId: classId, label: label });
++    return { uid, email, pin };
++  },
++
++  /** Adds `count` students with unused picture names. Returns [{label, pin}]. */
++  async addStudents (classId, count) {
++    if (B()) return B().addStudents(classId, count);
++    let ref = db.collection('classes').doc(classId);
++    let cls = (await ref.get()).data();
++    let used = new Set((cls.students || []).map(s => s.label));
++    // Every animal once before any repeats, with the colors mixed up.
++    let options = [];
++    for (let r = 0; r < COLORS.length; r++) ANIMALS.forEach(([a], ai) => options.push(COLORS[(ai + r * 3) % COLORS.length] + ' ' + a));
++    let added = [];
++    let pickNext = () => options.find(o => !used.has(o));
++    let pins = {};
++    let students = (cls.students || []).slice();
++    for (let i = 0; i < count; i++) {
++      let label = pickNext();
++      if (!label) break;
++      used.add(label);
++      let made = await this._makeStudentLogin(classId, label, 0);
++      students.push({ label: label, email: made.email, uid: made.uid });
++      pins[label] = made.pin;
++      added.push({ label: label, pin: made.pin });
++      await ref.update({ students: students });
++      await db.collection('classSecrets').doc(classId).set({ pins: pins }, { merge: true });
++    }
++    return added;
++  },
++
++  /** Gives a student a new PIN. Their projects move to the new login. */
++  async resetPin (classId, label) {
++    if (B()) return B().resetPin(classId, label);
++    let ref = db.collection('classes').doc(classId);
++    let cls = (await ref.get()).data();
++    let students = (cls.students || []).slice();
++    let i = students.findIndex(s => s.label === label);
++    if (i === -1) throw new Error('not-found');
++    let old = students[i];
++    let gen = (old.gen || 0) + 1;
++    let made = await this._makeStudentLogin(classId, label, gen);
++    let projects = await db.collection('projects').where('owner', '==', old.uid).get();
++    for (let d of projects.docs) await d.ref.update({ owner: made.uid });
++    students[i] = { label: label, email: made.email, uid: made.uid, gen: gen };
++    await ref.update({ students: students });
++    await db.collection('classSecrets').doc(classId).set({ pins: { [label]: made.pin } }, { merge: true });
++    await db.collection('students').doc(old.uid).delete();
++    return made.pin;
++  },
++
++  async removeStudent (classId, label) {
++    if (B()) return B().removeStudent(classId, label);
++    let ref = db.collection('classes').doc(classId);
++    let cls = (await ref.get()).data();
++    let s = (cls.students || []).find(x => x.label === label);
++    await ref.update({ students: (cls.students || []).filter(x => x.label !== label) });
++    if (s) await db.collection('students').doc(s.uid).delete();
++  },
++
++  async renameClass (classId, name) {
++    if (B()) return B().renameClass(classId, name);
++    await db.collection('classes').doc(classId).update({ name: name });
++  },
++
++  /* ----- projects ----- */
++
++  async listProjects (opts) {
++    if (B()) return B().listProjects(opts);
++    let q = db.collection('projects');
++    q = opts && opts.classId ? q.where('classId', '==', opts.classId) : q.where('owner', '==', currentUser.uid);
++    let snap = await q.get();
++    return snap.docs.map(d => {
++      let x = d.data();
++      return { id: d.id, title: x.title, thumb: x.thumb, owner: x.owner, label: x.label, size: x.size, updatedAt: tsToMillis(x.updatedAt) };
++    }).filter(p => p.updatedAt || p.size).sort((a, b) => b.updatedAt - a.updatedAt);
++  },
++
++  /** Saves a project. Pass id to overwrite one of your own. Returns the id. */
++  async saveProject ({ id, title, thumb, blob }) {
++    if (B()) return B().saveProject({ id, title, thumb, blob });
++    let ref = id ? db.collection('projects').doc(id) : db.collection('projects').doc();
++    let meta = { owner: currentUser.uid, title: title || 'Untitled', thumb: thumb || null,
++      classId: currentUser.classId || null, label: currentUser.label || 'Teacher' };
++    return writeChunked(ref, meta, blob);
++  },
++
++  loadProject (id) { return B() ? B().loadProject(id) : readChunked(db.collection('projects').doc(id)); },
++  deleteProject (id) { return B() ? B().deleteProject(id) : deleteChunked(db.collection('projects').doc(id)); },
++
++  /* ----- Learn (teacher publishes, everyone reads) ----- */
++
++  async listLearn () {
++    if (B()) return B().listLearn();
++    let snap = await db.collection('learn').get();
++    return snap.docs.map(d => Object.assign({ id: 'cloud-' + d.id, cloudId: d.id }, d.data(), { updatedAt: tsToMillis(d.data().updatedAt) }))
++      .filter(x => x.chunkCount > 0)
++      .sort((a, b) => (a.order || 0) - (b.order || 0) || a.title.localeCompare(b.title));
++  },
++
++  async publishLearn ({ cloudId, title, description, principles, tags, preview, blob, order }) {
++    if (B()) return B().publishLearn({ cloudId, title, description, principles, tags, preview, blob, order });
++    let ref = cloudId ? db.collection('learn').doc(cloudId) : db.collection('learn').doc(slug(title).slice(0, 40) + '-' + randomId(4));
++    let meta = { title, description: description || '', principles: principles || [], tags: tags || [], preview: preview || null, order: order || 0 };
++    return writeChunked(ref, meta, blob);
++  },
++
++  async updateLearnInfo (cloudId, info) {
++    if (B()) return B().updateLearnInfo(cloudId, info);
++    await db.collection('learn').doc(cloudId).update(info);
++  },
++
++  loadLearn (cloudId) { return B() ? B().loadLearn(cloudId) : readChunked(db.collection('learn').doc(cloudId)); },
++  deleteLearn (cloudId) { return B() ? B().deleteLearn(cloudId) : deleteChunked(db.collection('learn').doc(cloudId)); },
++
++  /* ----- Class Sounds (teacher uploads, signed-in students use) ----- */
++
++  async listClassSounds () {
++    if (B()) return B().listClassSounds();
++    let snap = await db.collection('classSounds').get();
++    return snap.docs.map(d => Object.assign({ id: d.id }, d.data()))
++      .filter(x => x.chunkCount > 0)
++      .sort((a, b) => String(a.name).localeCompare(String(b.name)));
++  },
++
++  async uploadClassSound ({ name, seconds, blob }) {
++    if (B()) return B().uploadClassSound({ name, seconds, blob });
++    let ref = db.collection('classSounds').doc(slug(name).slice(0, 40) + '-' + randomId(4));
++    return writeChunked(ref, { name: name, seconds: seconds || 1, type: blob.type || 'audio/mpeg' }, blob);
++  },
++
++  loadClassSound (id) { return B() ? B().loadClassSound(id) : readChunked(db.collection('classSounds').doc(id)); },
++  deleteClassSound (id) { return B() ? B().deleteClassSound(id) : deleteChunked(db.collection('classSounds').doc(id)); },
++
++  /* ----- which online project is open in the editor ----- */
++
++  /** Remembers that the editor's project (by its uuid) came from online project `id`. */
++  setOpenProject (projectUuid, id, title) { this._open = id ? { projectUuid, id, title } : null; },
++  openProjectFor (projectUuid) { return this._open && this._open.projectUuid === projectUuid ? this._open : null; },
++
++  /** Turns Firebase error codes into something a student or teacher can act on. */
++  message (e) {
++    let code = (e && (e.code || e.message)) || '';
++    if (/wrong-password|invalid-credential|invalid-login|user-not-found|not-found/.test(code)) return "That PIN didn't match. Try again, or ask your teacher.";
++    if (/too-many-requests/.test(code)) return 'Too many tries. Wait a minute, then try again.';
++    if (/network|unavailable|failed-precondition|deadline/.test(code)) return "Couldn't reach the save server. Check the Wi-Fi and try again.";
++    if (/permission-denied/.test(code)) return "This account isn't allowed to do that.";
++    if (/too-big/.test(code)) return 'This project is too big to save online (over 15 MB). Try removing big sounds or images.';
++    if (/email-already-in-use/.test(code)) return 'That email already has an account. Sign in instead.';
++    if (/weak-password/.test(code)) return 'Use a password with at least 6 characters.';
++    if (/invalid-email/.test(code)) return "That email address doesn't look right.";
++    return 'Something went wrong (' + code + ').';
++  },
++};
++
++window.wickCloud = cloud;
++export default cloud;
 diff --git a/src/files/filehandler.js b/src/files/filehandler.js
 index 836a3cd..79943e5 100644
 --- a/src/files/filehandler.js

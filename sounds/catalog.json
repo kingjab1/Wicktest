@@ -1,5 +1,6 @@
 {
  "categories": [
+  "Memes",
   "Cartoon",
   "Movement",
   "Hits & Crashes",
@@ -10,6 +11,510 @@
   "Game Blips"
  ],
  "sounds": [
+  {
+   "category": "Memes",
+   "name": "2000 Years Later",
+   "file": "memes/2000-years-later.mp3",
+   "seconds": 3.6,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "67",
+   "file": "memes/67.mp3",
+   "seconds": 1.0,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Ack",
+   "file": "memes/ack.mp3",
+   "seconds": 5.0,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Applause",
+   "file": "memes/applause.mp3",
+   "seconds": 7.1,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Are You Out of Your Mind",
+   "file": "memes/are-you-out-of-your-mind.mp3",
+   "seconds": 3.0,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Aura",
+   "file": "memes/aura.mp3",
+   "seconds": 12.9,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Baby Boo",
+   "file": "memes/baby-boo.mp3",
+   "seconds": 2.4,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Baby Laugh",
+   "file": "memes/baby-laugh.mp3",
+   "seconds": 6.6,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Bo Womp",
+   "file": "memes/bo-womp.mp3",
+   "seconds": 1.0,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Bombastic Side Eye",
+   "file": "memes/bombastic-side-eye.mp3",
+   "seconds": 6.4,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Bone Crack",
+   "file": "memes/bone-crack.mp3",
+   "seconds": 1.1,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Bruh",
+   "file": "memes/bruh.mp3",
+   "seconds": 0.9,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Buzzer",
+   "file": "memes/buzzer.mp3",
+   "seconds": 1.2,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Cat Laugh",
+   "file": "memes/cat-laugh.mp3",
+   "seconds": 3.6,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Crickets",
+   "file": "memes/crickets.mp3",
+   "seconds": 5.4,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Crowd Gasp",
+   "file": "memes/crowd-gasp.mp3",
+   "seconds": 1.1,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Dexter",
+   "file": "memes/dexter.mp3",
+   "seconds": 10.7,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Didn't Have To",
+   "file": "memes/didn-t-have-to.mp3",
+   "seconds": 19.0,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Discord Notification",
+   "file": "memes/discord-notification.mp3",
+   "seconds": 0.5,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Elevator Music",
+   "file": "memes/elevator-music.mp3",
+   "seconds": 10.7,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Error",
+   "file": "memes/error.mp3",
+   "seconds": 1.0,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Get Out",
+   "file": "memes/get-out.mp3",
+   "seconds": 1.0,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Goku Drip",
+   "file": "memes/goku-drip.mp3",
+   "seconds": 4.9,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Happy Happy Happy",
+   "file": "memes/happy-happy-happy.mp3",
+   "seconds": 7.5,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Helicopter Helicopter",
+   "file": "memes/helicopter-helicopter.mp3",
+   "seconds": 10.1,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Huh?",
+   "file": "memes/huh.mp3",
+   "seconds": 0.3,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "iPhone Notification",
+   "file": "memes/iphone-notification.mp3",
+   "seconds": 4.7,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "JJK Battle",
+   "file": "memes/jjk-battle.mp3",
+   "seconds": 18.1,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Lightsaber On",
+   "file": "memes/lightsaber-on.mp3",
+   "seconds": 2.8,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Lizard",
+   "file": "memes/lizard.mp3",
+   "seconds": 1.0,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Lizard Repeat",
+   "file": "memes/lizard-repeat.mp3",
+   "seconds": 10.3,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Mario Coin",
+   "file": "memes/mario-coin.mp3",
+   "seconds": 2.0,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Minecraft Eating",
+   "file": "memes/minecraft-eating.mp3",
+   "seconds": 1.7,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Minecraft Hurt",
+   "file": "memes/minecraft-hurt.mp3",
+   "seconds": 0.4,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Mouse Click",
+   "file": "memes/mouse-click.mp3",
+   "seconds": 1.5,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Moving Stone",
+   "file": "memes/moving-stone.mp3",
+   "seconds": 1.8,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Mr Krabs Walking",
+   "file": "memes/mr-krabs-walking.mp3",
+   "seconds": 2.1,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Oh My God",
+   "file": "memes/oh-my-god.mp3",
+   "seconds": 1.7,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "OIIA OIIA",
+   "file": "memes/oiia-oiia.mp3",
+   "seconds": 5.7,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Price Is Wrong",
+   "file": "memes/price-is-wrong.mp3",
+   "seconds": 5.1,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Rizz",
+   "file": "memes/rizz.mp3",
+   "seconds": 1.9,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Rizzbot Laugh",
+   "file": "memes/rizzbot-laugh.mp3",
+   "seconds": 2.4,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Romance",
+   "file": "memes/romance.mp3",
+   "seconds": 5.9,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Run!",
+   "file": "memes/run.mp3",
+   "seconds": 8.3,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Sad Meow Song",
+   "file": "memes/sad-meow-song.mp3",
+   "seconds": 25.1,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Screaming Tree Chicken",
+   "file": "memes/screaming-tree-chicken.mp3",
+   "seconds": 5.7,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Snore (Mimimimi)",
+   "file": "memes/snore-mimimimi.mp3",
+   "seconds": 5.7,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Sponge Stank",
+   "file": "memes/sponge-stank.mp3",
+   "seconds": 2.7,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "SpongeBob Fail",
+   "file": "memes/spongebob-fail.mp3",
+   "seconds": 3.4,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "SpongeBob Walking",
+   "file": "memes/spongebob-walking.mp3",
+   "seconds": 5.7,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Squidward Walking",
+   "file": "memes/squidward-walking.mp3",
+   "seconds": 3.5,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Super Mario Lose",
+   "file": "memes/super-mario-lose.mp3",
+   "seconds": 9.9,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Taco Bell",
+   "file": "memes/taco-bell.mp3",
+   "seconds": 2.0,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "The Undertaker",
+   "file": "memes/the-undertaker.mp3",
+   "seconds": 4.2,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Vine Boom",
+   "file": "memes/vine-boom.mp3",
+   "seconds": 1.3,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Vine Boom (Bass)",
+   "file": "memes/vine-boom-bass.mp3",
+   "seconds": 3.5,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Vine Boom (Longer)",
+   "file": "memes/vine-boom-longer.mp3",
+   "seconds": 3.1,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Weave",
+   "file": "memes/weave.mp3",
+   "seconds": 0.6,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "What Bottom Text",
+   "file": "memes/what-bottom-text.mp3",
+   "seconds": 9.0,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Windows XP Shutdown",
+   "file": "memes/windows-xp-shutdown.mp3",
+   "seconds": 3.3,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Wow",
+   "file": "memes/wow.mp3",
+   "seconds": 4.2,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Yaaay",
+   "file": "memes/yaaay.mp3",
+   "seconds": 8.2,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
+  {
+   "category": "Memes",
+   "name": "Yoshi Tongue",
+   "file": "memes/yoshi-tongue.mp3",
+   "seconds": 0.2,
+   "credit": "Meme sound",
+   "license": "Added by the teacher"
+  },
   {
    "category": "Cartoon",
    "name": "Boing",
