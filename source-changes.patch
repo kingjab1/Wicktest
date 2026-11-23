@@ -3156,10 +3156,10 @@ index b3f225d..a6f82a1 100644
            builtinPreviews={this.props.builtinPreviews}
 diff --git a/src/Editor/Modals/MyWork/MyWork.jsx b/src/Editor/Modals/MyWork/MyWork.jsx
 new file mode 100644
-index 0000000..aab60e7
+index 0000000..8812332
 --- /dev/null
 +++ b/src/Editor/Modals/MyWork/MyWork.jsx
-@@ -0,0 +1,687 @@
+@@ -0,0 +1,693 @@
 +/*
 + * My Work: student logins (class + picture + PIN), online saves, and teacher
 + * mode (classes, login cards, Learn publishing, Class Sounds).
@@ -3496,21 +3496,27 @@ index 0000000..aab60e7
 +  }
 +
 +  stopSound = () => {
-+    if (this.audio) { this.audio.pause(); URL.revokeObjectURL(this.audio.src); this.audio = null; }
++    this.playingId = null;
++    if (this.audio) { this.audio.pause(); this.audio = null; }
++    if (this.audioUrl) { URL.revokeObjectURL(this.audioUrl); this.audioUrl = null; }
 +    if (this.state.playing) this.setState({ playing: null });
 +  }
 +
 +  playSound = (s) => {
-+    if (this.state.playing === s.id) { this.stopSound(); return; }
++    if (this.playingId === s.id) { this.stopSound(); return; }
 +    this.stopSound();
++    // Start a silent clip inside the tap so iPad Safari allows the real sound once it downloads.
++    let a = new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=');
++    this.audio = a; this.playingId = s.id;
 +    this.setState({ playing: s.id });
++    a.onended = () => { if (this.audio === a && this.audioUrl) this.stopSound(); };
++    a.play().catch(() => {});
 +    cloud.loadClassSound(s.id).then(blob => {
-+      if (this.state.playing !== s.id) return;
-+      let a = new Audio(URL.createObjectURL(blob));
-+      a.onended = () => { if (this.audio === a) this.stopSound(); };
-+      this.audio = a;
-+      a.play().catch(() => this.stopSound());
-+    }).catch(() => this.stopSound());
++      if (this.audio !== a) return;
++      this.audioUrl = URL.createObjectURL(blob);
++      a.src = this.audioUrl;
++      a.play().catch(() => { if (this.audio === a) this.stopSound(); });
++    }).catch(() => { if (this.audio === a) this.stopSound(); });
 +  }
 +
 +  deleteSound = (s) => {
@@ -4218,10 +4224,10 @@ index 0000000..68d3f9c
 +}
 diff --git a/src/Editor/Modals/SoundLibrary/SoundLibrary.jsx b/src/Editor/Modals/SoundLibrary/SoundLibrary.jsx
 new file mode 100644
-index 0000000..c6b1a98
+index 0000000..bf14777
 --- /dev/null
 +++ b/src/Editor/Modals/SoundLibrary/SoundLibrary.jsx
-@@ -0,0 +1,177 @@
+@@ -0,0 +1,197 @@
 +/*
 + * Sound Effects: a library of sounds students can preview and drop onto their
 + * animation. It's the Sounds tab of the Builtin Library (the + button in the
@@ -4241,6 +4247,8 @@ index 0000000..c6b1a98
 +import './_soundlibrary.scss';
 +
 +const CLASS_SOUNDS = 'Class Sounds';
++// A tiny silent WAV, played inside the tap so iPad Safari allows the real sound after it loads.
++const SILENCE = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
 +
 +class SoundLibrary extends Component {
 +  constructor (props) {
@@ -4300,6 +4308,7 @@ index 0000000..c6b1a98
 +  }
 +
 +  stop = () => {
++    this.playingKey = null;
 +    if (this.audio) { this.audio.pause(); this.audio = null; }
 +    if (this.audioUrl) { URL.revokeObjectURL(this.audioUrl); this.audioUrl = null; }
 +    if (this.state.playing && !this.unmounted) this.setState({ playing: null });
@@ -4307,21 +4316,38 @@ index 0000000..c6b1a98
 +
 +  togglePlay = (sound) => {
 +    let k = this.key(sound);
-+    if (this.state.playing === k) { this.stop(); return; }
++    if (this.playingKey === k) { this.stop(); return; }
 +    this.stop();
++    // The audio element is made and started inside the tap itself: iPad Safari only
++    // lets sound start from a tap, and only on an element the tap already played.
++    let audio = new Audio();
++    this.audio = audio;
++    this.playingKey = k;
 +    this.setState({ playing: k });
-+    let start = (src) => {
-+      if (this.state.playing !== k) return;
-+      let audio = new Audio(src);
-+      audio.onended = () => { if (this.audio === audio) this.stop(); };
-+      this.audio = audio;
++    let real = !sound.id;
++    audio.onended = () => { if (real && this.audio === audio) this.stop(); };
++    let play = () => {
 +      let p = audio.play();
-+      if (p && p.catch) p.catch(e => { console.error(e); this.stop(); });
++      if (p && p.catch) p.catch(e => {
++        if (e && e.name === 'AbortError') return; // a newer load replaced this one
++        console.error('Sound preview:', e);
++        if (this.audio === audio) this.stop();
++      });
 +    };
 +    if (sound.id) {
-+      this.getBlob(sound).then(blob => { this.audioUrl = URL.createObjectURL(blob); start(this.audioUrl); }).catch(() => this.stop());
++      audio.src = SILENCE;
++      let p = audio.play();
++      if (p && p.catch) p.catch(() => {});
++      this.getBlob(sound).then(blob => {
++        if (this.audio !== audio) return;
++        this.audioUrl = URL.createObjectURL(blob);
++        real = true;
++        audio.src = this.audioUrl;
++        play();
++      }).catch(() => { if (this.audio === audio) this.stop(); });
 +    } else {
-+      start(SoundLibrary.ROOT + sound.file);
++      audio.src = SoundLibrary.ROOT + sound.file;
++      play();
 +    }
 +  }
 +
