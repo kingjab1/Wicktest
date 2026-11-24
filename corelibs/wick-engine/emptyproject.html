@@ -49598,6 +49598,7 @@ Wick.Layer = class extends Wick.Base {
     this.locked = args.locked === undefined ? false : args.locked;
     this.hidden = args.hidden === undefined ? false : args.hidden;
     this.name = args.name || null;
+    this._isGuide = args.isGuide;
   }
 
   _serialize(args) {
@@ -49605,6 +49606,7 @@ Wick.Layer = class extends Wick.Base {
 
     data.locked = this.locked;
     data.hidden = this.hidden;
+    if (typeof this._isGuide === 'boolean') data.isGuide = this._isGuide;
     return data;
   }
 
@@ -49613,6 +49615,33 @@ Wick.Layer = class extends Wick.Base {
 
     this.locked = data.locked;
     this.hidden = data.hidden;
+    this._isGuide = data.isGuide;
+  }
+  /**
+   * Guide layers show while editing but are left out of exports (and, if the editor
+   * says so, out of playback). Layers named Notes or Annotations are guides unless
+   * the switch has been turned off for them.
+   * @type {boolean}
+   */
+
+
+  get isGuide() {
+    if (typeof this._isGuide === 'boolean') return this._isGuide;
+    return /^\s*(notes?|annotations?)\s*$/i.test(this.name || '');
+  }
+
+  set isGuide(isGuide) {
+    this._isGuide = !!isGuide;
+  }
+  /**
+   * Should this layer be left out of what's drawn right now?
+   * @type {boolean}
+   */
+
+
+  get isLeftOutOfRender() {
+    if (!this.isGuide || !this.project) return false;
+    return this.project.isPublished || !!(this.project._playing && Wick.Layer.hideGuidesWhilePlaying);
   }
 
   get classname() {
@@ -63752,7 +63781,7 @@ Wick.View.Timeline = class extends Wick.View {
   render() {
     this.frameLayers = [];
     var layersInRenderOrder = this.model.layers.filter(layer => {
-      if (layer.project.isPublished && /^\s*(notes?|annotations?)\s*$/i.test(layer.name || '')) return false;
+      if (layer.isLeftOutOfRender) return false;
       return layer.project.isPublished || !layer.hidden;
     }).reverse();
     layersInRenderOrder.forEach(layer => {
@@ -65853,6 +65882,20 @@ Wick.GUIElement.Layer = class extends Wick.GUIElement {
         this.projectWasModified();
       }
     });
+    this.guideButton = new Wick.GUIElement.LayerButton(model, {
+      toggledTooltip: 'Guide layer: left out of exports. Tap to export it again.',
+      untoggledTooltip: 'Make this a guide layer (left out of exports)',
+      toggledIcon: 'guide_layer',
+      untoggledIcon: 'guide_layer',
+      isToggledFn: () => {
+        return this.model.isGuide;
+      },
+      clickFn: () => {
+        this.model.isGuide = !this.model.isGuide;
+        this.model.activate();
+        this.projectWasModified();
+      }
+    });
   }
 
   draw() {
@@ -65893,6 +65936,25 @@ Wick.GUIElement.Layer = class extends Wick.GUIElement {
     ctx.roundRect(0, 0, width, height, Wick.GUIElement.LAYER_LABEL_BORDER_RADIUS);
     ctx.fill();
     ctx.stroke();
+
+    if (this.model.isGuide) {
+      // Guide layers: diagonal stripes and a GUIDE tag
+      ctx.save();
+      ctx.clip();
+      ctx.strokeStyle = 'rgba(70, 90, 200, 0.28)';
+      ctx.lineWidth = 6;
+      for (var stripe = -height; stripe < width; stripe += 16) {
+        ctx.beginPath();
+        ctx.moveTo(stripe, height);
+        ctx.lineTo(stripe + height, 0);
+        ctx.stroke();
+      }
+      ctx.restore();
+      ctx.font = 'bold 10px ' + Wick.GUIElement.LAYER_LABEL_FONT_FAMILY;
+      ctx.fillStyle = '#2b3a99';
+      ctx.fillText('GUIDE', width - ctx.measureText('GUIDE').width - 8, height - 6);
+    }
+
     ctx.restore(); // Label text
 
     var maxWidth = Wick.GUIElement.LAYERS_CONTAINER_WIDTH - 10;
@@ -65902,7 +65964,7 @@ Wick.GUIElement.Layer = class extends Wick.GUIElement {
     ctx.clip();
     ctx.font = "16px " + Wick.GUIElement.LAYER_LABEL_FONT_FAMILY;
     ctx.fillStyle = this.model.isActive ? Wick.GUIElement.LAYER_LABEL_ACTIVE_FONT_COLOR : Wick.GUIElement.LAYER_LABEL_INACTIVE_FONT_COLOR;
-    ctx.fillText(this.model.name, 57, this.gridCellHeight / 2 + 6);
+    ctx.fillText(this.model.name, 77, this.gridCellHeight / 2 + 6);
     ctx.restore(); // Buttons
 
     ctx.save();
@@ -65912,6 +65974,10 @@ Wick.GUIElement.Layer = class extends Wick.GUIElement {
     ctx.save();
     ctx.translate(40, this.gridCellHeight / 2);
     this.lockButton.draw(this.model.locked ? 'lock_closed' : 'lock_open', this.model.locked);
+    ctx.restore();
+    ctx.save();
+    ctx.translate(60, this.gridCellHeight / 2);
+    this.guideButton.draw();
     ctx.restore(); // Reordering ghost
 
     if (this.mouseState === 'down') {

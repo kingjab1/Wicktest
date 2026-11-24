@@ -1,3 +1,55 @@
+diff --git a/engine/src/base/Layer.js b/engine/src/base/Layer.js
+index d2b170a..b3bae3e 100644
+--- a/engine/src/base/Layer.js
++++ b/engine/src/base/Layer.js
+@@ -33,6 +33,7 @@ Wick.Layer = class extends Wick.Base {
+         this.locked = args.locked === undefined ? false : args.locked;
+         this.hidden = args.hidden === undefined ? false : args.hidden;
+         this.name = args.name || null;
++        this._isGuide = args.isGuide;
+     }
+ 
+     _serialize (args) {
+@@ -40,6 +41,7 @@ Wick.Layer = class extends Wick.Base {
+ 
+         data.locked = this.locked;
+         data.hidden = this.hidden;
++        if (typeof this._isGuide === 'boolean') data.isGuide = this._isGuide;
+ 
+         return data;
+     }
+@@ -49,6 +51,31 @@ Wick.Layer = class extends Wick.Base {
+ 
+         this.locked = data.locked;
+         this.hidden = data.hidden;
++        this._isGuide = data.isGuide;
++    }
++
++    /**
++     * Guide layers show while editing but are left out of exports (and, if the editor
++     * says so, out of playback). Layers named Notes or Annotations are guides unless
++     * the switch has been turned off for them.
++     * @type {boolean}
++     */
++    get isGuide () {
++        if (typeof this._isGuide === 'boolean') return this._isGuide;
++        return /^\s*(notes?|annotations?)\s*$/i.test(this.name || '');
++    }
++
++    set isGuide (isGuide) {
++        this._isGuide = !!isGuide;
++    }
++
++    /**
++     * Should this layer be left out of what's drawn right now?
++     * @type {boolean}
++     */
++    get isLeftOutOfRender () {
++        if (!this.isGuide || !this.project) return false;
++        return this.project.isPublished || !!(this.project._playing && Wick.Layer.hideGuidesWhilePlaying);
+     }
+ 
+     get classname () {
 diff --git a/engine/src/base/Project.js b/engine/src/base/Project.js
 index 498bb9f..b017336 100644
 --- a/engine/src/base/Project.js
@@ -117,6 +169,77 @@ index c140aa3..95d7e24 100644
          } else if (this.model.sound) {
              // Sound waveform
  
+diff --git a/engine/src/gui/Layer.js b/engine/src/gui/Layer.js
+index da230b1..aaa4fcc 100644
+--- a/engine/src/gui/Layer.js
++++ b/engine/src/gui/Layer.js
+@@ -54,6 +54,20 @@ Wick.GUIElement.Layer = class extends Wick.GUIElement {
+                 this.projectWasModified();
+             }
+         });
++        this.guideButton = new Wick.GUIElement.LayerButton(model, {
++            toggledTooltip: 'Guide layer: left out of exports. Tap to export it again.',
++            untoggledTooltip: 'Make this a guide layer (left out of exports)',
++            toggledIcon: 'guide_layer',
++            untoggledIcon: 'guide_layer',
++            isToggledFn: () => {
++                return this.model.isGuide;
++            },
++            clickFn: () => {
++                this.model.isGuide = !this.model.isGuide;
++                this.model.activate();
++                this.projectWasModified();
++            }
++        });
+     }
+ 
+     draw () {
+@@ -98,6 +112,24 @@ Wick.GUIElement.Layer = class extends Wick.GUIElement {
+             ctx.roundRect(0, 0, width, height, Wick.GUIElement.LAYER_LABEL_BORDER_RADIUS);
+             ctx.fill();
+             ctx.stroke();
++
++            if (this.model.isGuide) {
++                // Guide layers: diagonal stripes and a GUIDE tag
++                ctx.save();
++                ctx.clip();
++                ctx.strokeStyle = 'rgba(70, 90, 200, 0.28)';
++                ctx.lineWidth = 6;
++                for (var stripe = -height; stripe < width; stripe += 16) {
++                    ctx.beginPath();
++                    ctx.moveTo(stripe, height);
++                    ctx.lineTo(stripe + height, 0);
++                    ctx.stroke();
++                }
++                ctx.restore();
++                ctx.font = 'bold 10px ' + Wick.GUIElement.LAYER_LABEL_FONT_FAMILY;
++                ctx.fillStyle = '#2b3a99';
++                ctx.fillText('GUIDE', width - ctx.measureText('GUIDE').width - 8, height - 6);
++            }
+         ctx.restore();
+ 
+         // Label text
+@@ -110,7 +142,7 @@ Wick.GUIElement.Layer = class extends Wick.GUIElement {
+         ctx.fillStyle = this.model.isActive
+           ? Wick.GUIElement.LAYER_LABEL_ACTIVE_FONT_COLOR
+           : Wick.GUIElement.LAYER_LABEL_INACTIVE_FONT_COLOR;
+-        ctx.fillText(this.model.name, 57, this.gridCellHeight / 2 + 6);
++        ctx.fillText(this.model.name, 77, this.gridCellHeight / 2 + 6);
+         ctx.restore();
+ 
+         // Buttons
+@@ -124,6 +156,11 @@ Wick.GUIElement.Layer = class extends Wick.GUIElement {
+             this.lockButton.draw(this.model.locked ? 'lock_closed' : 'lock_open', this.model.locked);
+         ctx.restore();
+ 
++        ctx.save();
++        ctx.translate(60, this.gridCellHeight / 2);
++            this.guideButton.draw();
++        ctx.restore();
++
+         // Reordering ghost
+         if(this.mouseState === 'down') {
+             ctx.fillStyle = 'red';
 diff --git a/engine/src/gui/NumberLine.js b/engine/src/gui/NumberLine.js
 index 938d395..cd810ab 100644
 --- a/engine/src/gui/NumberLine.js
@@ -142,7 +265,7 @@ index 938d395..cd810ab 100644
          for(var i = -1; i < width / this.gridCellWidth + 1; i++) {
              var skip =  Math.round(this.project.scrollX / this.gridCellWidth);
 diff --git a/engine/src/view/View.Timeline.js b/engine/src/view/View.Timeline.js
-index 7cb9e16..2978df3 100644
+index 7cb9e16..7bf09a0 100644
 --- a/engine/src/view/View.Timeline.js
 +++ b/engine/src/view/View.Timeline.js
 @@ -30,6 +30,9 @@ Wick.View.Timeline = class extends Wick.View {
@@ -151,7 +274,7 @@ index 7cb9e16..2978df3 100644
          var layersInRenderOrder = this.model.layers.filter(layer => {
 +            // Layers named "Notes" or "Annotations" are teaching notes: visible while editing,
 +            // never in exported or published animations.
-+            if (layer.project.isPublished && /^\s*(notes?|annotations?)\s*$/i.test(layer.name || '')) return false;
++            if (layer.isLeftOutOfRender) return false;
              return layer.project.isPublished || !layer.hidden;
          }).reverse();
  
@@ -1784,7 +1907,7 @@ index f4c1ad4..f925b02 100644
                        </DockedPanel>
                      </ReflexElement>
 diff --git a/src/Editor/EditorCore.jsx b/src/Editor/EditorCore.jsx
-index 0383385..5f30ead 100644
+index 0383385..7eabc3b 100644
 --- a/src/Editor/EditorCore.jsx
 +++ b/src/Editor/EditorCore.jsx
 @@ -23,6 +23,7 @@ import VideoExport from './export/VideoExport';
@@ -1971,7 +2094,7 @@ index 0383385..5f30ead 100644
    openNewProjectConfirmation = () => {
      this.openWarningModal({
        description: "You will lose any unsaved changes.",
-@@ -1707,6 +1877,299 @@ class EditorCore extends Component {
+@@ -1707,6 +1877,315 @@ class EditorCore extends Component {
      return this.project.hasFont(font);
    }
  
@@ -2038,9 +2161,25 @@ index 0383385..5f30ead 100644
 +    this.forceUpdate();
 +  }
 +
++  /** Whether guide layers show while playing in the editor. On by default. Exports always leave them out. */
++  getGuidesWhilePlaying = () => {
++    let show;
++    try { show = window.localStorage.getItem('guidesWhilePlaying') !== 'hide'; } catch (e) { show = this._memGuides !== false; }
++    window.Wick.Layer.hideGuidesWhilePlaying = !show;
++    return show;
++  }
++
++  toggleGuidesWhilePlaying = () => {
++    let next = !this.getGuidesWhilePlaying();
++    try { window.localStorage.setItem('guidesWhilePlaying', next ? 'show' : 'hide'); } catch (e) { this._memGuides = next; }
++    window.Wick.Layer.hideGuidesWhilePlaying = !next;
++    this.forceUpdate();
++  }
++
 +  /** Called just before playing starts: jump into the range if the playhead is outside it. */
 +  prepareRangedPlay = () => {
 +    this._rangeStopAt = null;
++    this.getGuidesWhilePlaying();
 +    let range = this.getPlayRange();
 +    if (!range || !this.project.focus.isRoot) return;
 +    let tl = this.project.root.timeline;
@@ -4753,10 +4892,10 @@ index 19db41e..c63f0da 100644
              </Fragment>
          )
 diff --git a/src/Editor/Panels/Timeline/Timeline.jsx b/src/Editor/Panels/Timeline/Timeline.jsx
-index 719cfcd..c9186fe 100644
+index 719cfcd..b4b47be 100644
 --- a/src/Editor/Panels/Timeline/Timeline.jsx
 +++ b/src/Editor/Panels/Timeline/Timeline.jsx
-@@ -23,6 +23,7 @@ import { DropTarget } from 'react-dnd';
+@@ -23,10 +23,12 @@ import { DropTarget } from 'react-dnd';
  import DragDropTypes from 'Editor/DragDropTypes.js';
  
  import './_timeline.scss';
@@ -4764,7 +4903,20 @@ index 719cfcd..c9186fe 100644
  import 'bootstrap/dist/css/bootstrap.min.css';
  
  import iconLock from 'resources/timeline-icons/locked.png';
-@@ -102,6 +103,7 @@ class Timeline extends Component {
+ import iconUnlock from 'resources/timeline-icons/unlocked.png';
++import iconGuide from 'resources/timeline-icons/guide-layer.svg';
+ import iconHidden from 'resources/timeline-icons/hidden.png';
+ import iconShown from 'resources/timeline-icons/shown.png';
+ import iconCopyForward from 'resources/timeline-icons/copyForward.png';
+@@ -64,6 +66,7 @@ class Timeline extends Component {
+       Icons.loadIcon('hide_layer', iconShown);
+       Icons.loadIcon('show_layer', iconHidden);
+       Icons.loadIcon('lock_layer', iconUnlock);
++      Icons.loadIcon('guide_layer', iconGuide);
+       Icons.loadIcon('unlock_layer', iconLock);
+       Icons.loadIcon('copy_frame_forward', iconCopyForward);
+       Icons.loadIcon('cut_frame', iconSplit);
+@@ -102,6 +105,7 @@ class Timeline extends Component {
        <div id="animation-timeline-container" aria-label="Timeline">
          { isOver && <div className="drag-drop-overlay" /> }
          <div id="animation-timeline" ref={this.canvasContainer} />
@@ -4774,10 +4926,10 @@ index 719cfcd..c9186fe 100644
    }
 diff --git a/src/Editor/Panels/Timeline/TimelineTools/TimelineTools.jsx b/src/Editor/Panels/Timeline/TimelineTools/TimelineTools.jsx
 new file mode 100644
-index 0000000..f67f578
+index 0000000..058ce7d
 --- /dev/null
 +++ b/src/Editor/Panels/Timeline/TimelineTools/TimelineTools.jsx
-@@ -0,0 +1,64 @@
+@@ -0,0 +1,70 @@
 +/*
 + * Buttons in the timeline's top row: make a drawing one frame longer or shorter,
 + * choose whether that pushes or overwrites the frames next to it, and turn
@@ -4799,6 +4951,7 @@ index 0000000..f67f578
 +  editor.syncPlayRangeToTimeline();
 +  let range = editor.getPlayRange();
 +  let repeat = editor.getPlayRepeat();
++  let guides = editor.getGuidesWhilePlaying();
 +  let stop = e => e.stopPropagation();
 +  return (
 +    <div className='timeline-tools' onPointerDown={stop} onMouseDown={stop} onTouchStart={stop}>
@@ -4812,6 +4965,11 @@ index 0000000..f67f578
 +        <button className={'tt-btn' + (repeat ? ' tt-on' : '')} aria-pressed={repeat}
 +          title={repeat ? 'Playing starts over at the end. Tap to play once.' : 'Playing stops at the end. Tap to repeat.'} onClick={editor.togglePlayRepeat}>
 +          {repeat ? '⟲ Repeat' : '→ Once'}
++        </button>
++        <button className={'tt-btn' + (guides ? ' tt-on' : '')} aria-pressed={guides}
++          title={guides ? 'Guide layers show when you press play. Tap to hide them. Exports always leave them out.' : 'Guide layers are hidden when you press play. Tap to show them.'}
++          onClick={editor.toggleGuidesWhilePlaying}>
++          {guides ? 'Guides: show' : 'Guides: hide'}
 +        </button>
 +      </div>
 +      <div className='timeline-tools-group' role='group' aria-label='Frame length'>
@@ -5464,3 +5622,14 @@ index 836a3cd..79943e5 100644
          input.click();
        }
  
+diff --git a/src/resources/timeline-icons/guide-layer.svg b/src/resources/timeline-icons/guide-layer.svg
+new file mode 100644
+index 0000000..ab6ae70
+--- /dev/null
++++ b/src/resources/timeline-icons/guide-layer.svg
+@@ -0,0 +1,5 @@
++<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
++  <path d="M3 19 C 7 6, 15 4, 20 9" fill="none" stroke="#000" stroke-width="2.4" stroke-linecap="round" stroke-dasharray="3.2 3.2"/>
++  <circle cx="3.5" cy="19" r="2.4" fill="#000"/>
++  <path d="M17 5.5 L21.5 9.5 L16 11.5 Z" fill="#000"/>
++</svg>

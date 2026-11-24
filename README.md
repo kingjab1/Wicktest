@@ -11,12 +11,13 @@ This is the sandbox for new features. It has everything the classroom version ha
 - **Buttons respond to a full tap.** The original fired actions on touch-down, and iPad Safari won't open a file picker from that, so Open and asset upload did nothing.
 - **File pickers work on iPad.** The hidden file input is now actually on the page, and the file-type filter is skipped on iOS so `.wick` projects aren't greyed out.
 - **Sound import is more reliable.** Fixed a file-extension check in the engine and added `.m4a`/`.aac` (iPad Voice Memos).
-- **Learn tab.** A Learn button opens example exercises (tagged by animation principle) and a Principles view. Content lives in [`learn/`](learn/README.md) and is loaded at runtime, so adding an example never needs a rebuild. Layers named Notes or Annotations show while editing but never in exports.
+- **Learn tab.** A Learn button opens example exercises (tagged by animation principle) and a Principles view. Content lives in [`learn/`](learn/README.md) and is loaded at runtime, so adding an example never needs a rebuild. Layers named Notes or Annotations start out as guide layers.
 - **Sound library.** The + button in the Asset Library opens Sounds and Clips. See `sounds/README.md` for where each set comes from.
 - **Record sounds** (testing). A Record tab in Sounds uses the microphone; recordings become WAV files at the playhead. Needs https.
 - **Frame length buttons** (testing). In the timeline's top row: − Length + changes the selected drawing by one frame, and Push / Overwrite picks whether the next frames move along or get covered.
 - **Loops** (testing). Loop frames turns the selected frames into one looping frame. +1 loop and Loop to end make it repeat; Edit loop goes inside to change the drawings, Done comes back. In the timeline each pass of a loop has its own shade, with a dot where each drawing inside starts.
 - **Play range** (testing). Start and End set where playing begins and ends, from the playhead; the range shows as a green band over the frame numbers, and tapping the range chip clears it. Repeat / Once picks whether playing starts over or stops at the end. The range is remembered per project in each browser.
+- **Guide layers** (testing). The third button on each layer row (a dotted path) makes it a guide layer: it shows while editing but is left out of every export. Guide layers are striped with a GUIDE tag. One "Guides: show / hide" button in the timeline's top row decides whether guide layers show when you press play in the editor.
 - **My Work and teacher mode** (hidden until `cloud-config.json` is added). See `cloud/README.md`.
 - **Hosting tweaks.** Built-in library objects are served as `.wickobj.json`, and the video exporter (`ffmpeg.js`) is split into two files.
 
