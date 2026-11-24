@@ -56990,6 +56990,7 @@ Wick.Frame = class extends Wick.Tickable {
 
 
   getRelativePlayheadPosition() {
+    if (!this.parentTimeline) return 1; // a frame that's not on a timeline (e.g. while undo rebuilds things)
     return this.parentTimeline.playheadPosition - this.start + 1;
   }
   /**
@@ -59412,6 +59413,8 @@ Wick.Tools.Cursor = class extends Wick.Tool {
 
   onDoubleClick(e) {
     var selectedObject = this._selection.getSelectedObject();
+
+    if (selectedObject instanceof Wick.Clip && Wick.Clip.onEditLoop && Wick.Clip.onEditLoop(selectedObject)) return;
 
     if (selectedObject && selectedObject instanceof Wick.Clip) {
       // Double clicked a Clip, set the focus to that Clip.
@@ -66253,6 +66256,15 @@ Wick.GUIElement.NumberLine = class extends Wick.GUIElement {
       ctx.fillRect(rangeX, 0, 3, height);
       ctx.fillRect(rangeX + rangeW - 3, 0, 3, height);
       ctx.fillRect(rangeX, 0, rangeW, 3);
+    } // Loop being edited in place (set in the editor): a purple band along the bottom
+
+
+    var loopEdit = Wick.GUIElement.loopEdit;
+    if (loopEdit && this.model === this.model.project.root.timeline) {
+      ctx.fillStyle = 'rgba(177, 151, 252, 0.35)';
+      ctx.fillRect((loopEdit.start - 1) * this.gridCellWidth, height - 7, (loopEdit.end - loopEdit.start + 1) * this.gridCellWidth, 7);
+      ctx.fillStyle = '#b197fc';
+      ctx.fillRect((loopEdit.start - 1) * this.gridCellWidth, height - 7, (loopEdit.cycleEnd - loopEdit.start + 1) * this.gridCellWidth, 7);
     } // Draw number line cells
 
     for (var i = -1; i < width / this.gridCellWidth + 1; i++) {

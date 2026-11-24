@@ -241,10 +241,10 @@ index da230b1..aaa4fcc 100644
          if(this.mouseState === 'down') {
              ctx.fillStyle = 'red';
 diff --git a/engine/src/gui/NumberLine.js b/engine/src/gui/NumberLine.js
-index 938d395..cd810ab 100644
+index 938d395..939071e 100644
 --- a/engine/src/gui/NumberLine.js
 +++ b/engine/src/gui/NumberLine.js
-@@ -51,6 +51,19 @@ Wick.GUIElement.NumberLine = class extends Wick.GUIElement {
+@@ -51,6 +51,28 @@ Wick.GUIElement.NumberLine = class extends Wick.GUIElement {
          ctx.rect(this.project.scrollX-2, 0, width, height);
          ctx.fill();
  
@@ -261,9 +261,31 @@ index 938d395..cd810ab 100644
 +            ctx.fillRect(rangeX, 0, rangeW, 3);
 +        }
 +
++        // Loop being edited in place (set in the editor): a purple band along the bottom
++        var loopEdit = Wick.GUIElement.loopEdit;
++        if (loopEdit && this.model === this.model.project.root.timeline) {
++            ctx.fillStyle = 'rgba(177, 151, 252, 0.35)';
++            ctx.fillRect((loopEdit.start - 1) * this.gridCellWidth, height - 7, (loopEdit.end - loopEdit.start + 1) * this.gridCellWidth, 7);
++            ctx.fillStyle = '#b197fc';
++            ctx.fillRect((loopEdit.start - 1) * this.gridCellWidth, height - 7, (loopEdit.cycleEnd - loopEdit.start + 1) * this.gridCellWidth, 7);
++        }
++
          // Draw number line cells
          for(var i = -1; i < width / this.gridCellWidth + 1; i++) {
              var skip =  Math.round(this.project.scrollX / this.gridCellWidth);
+diff --git a/engine/src/tools/Cursor.js b/engine/src/tools/Cursor.js
+index c7bb275..8d1f625 100644
+--- a/engine/src/tools/Cursor.js
++++ b/engine/src/tools/Cursor.js
+@@ -114,6 +114,8 @@ Wick.Tools.Cursor = class extends Wick.Tool {
+ 
+     onDoubleClick (e) {
+         var selectedObject = this._selection.getSelectedObject();
++        // The editor can open loops right on the main timeline instead of going inside them.
++        if (selectedObject instanceof Wick.Clip && Wick.Clip.onEditLoop && Wick.Clip.onEditLoop(selectedObject)) return;
+         if(selectedObject && selectedObject instanceof Wick.Clip) {
+             // Double clicked a Clip, set the focus to that Clip.
+             if (this.project.focusTimelineOfSelectedClip() ) {
 diff --git a/engine/src/view/View.Timeline.js b/engine/src/view/View.Timeline.js
 index 7cb9e16..7bf09a0 100644
 --- a/engine/src/view/View.Timeline.js
@@ -1957,10 +1979,18 @@ index 0000000..c11d425
 +}
 \ No newline at end of file
 diff --git a/src/Editor/Editor.jsx b/src/Editor/Editor.jsx
-index f4c1ad4..3ded720 100644
+index f4c1ad4..fd6626b 100644
 --- a/src/Editor/Editor.jsx
 +++ b/src/Editor/Editor.jsx
-@@ -160,6 +160,13 @@ class Editor extends EditorCore {
+@@ -18,6 +18,7 @@
+  */
+ 
+ import React from 'react';
++import installCanvasGestures from './Gestures/canvasGestures';
+ 
+ import './_editor.scss';
+ import './styles/default_theme.css';
+@@ -160,6 +161,13 @@ class Editor extends EditorCore {
         */
        window.warnBeforeSave = (args) => {this.openWarningModal(args)};
      }
@@ -1974,7 +2004,7 @@ index f4c1ad4..3ded720 100644
  
      // Wick Project File Input
      this.openProjectFileFromClient = window.createFileInput({
-@@ -202,7 +209,7 @@ class Editor extends EditorCore {
+@@ -202,7 +210,7 @@ class Editor extends EditorCore {
    }
  
    UNSAFE_componentWillMount = () => {
@@ -1983,7 +2013,17 @@ index f4c1ad4..3ded720 100644
      // Initialize "live" engine state
      this.project = new window.Wick.Project();
      this.attachErrorHandlers();
-@@ -276,6 +283,7 @@ class Editor extends EditorCore {
+@@ -264,6 +272,9 @@ class Editor extends EditorCore {
+ 
+   componentDidMount = () => {
+     console.log("Project Mounted");
++    // Double-tapping a loop on the canvas opens it right on the main timeline.
++    window.Wick.Clip.onEditLoop = (clip) => !!(this.getLoopInFrame(clip.parentFrame) && this.editSelectedLoop(clip));
++    installCanvasGestures(this);
+     this.hidePreloader();
+     this.onWindowResize();
+     if(!this.tryToParseProjectURL()) {
+@@ -276,6 +287,7 @@ class Editor extends EditorCore {
    componentDidUpdate = (prevProps, prevState) => {
      if(this.state.previewPlaying && !prevState.previewPlaying) {
        this.project.view.canvas.focus();
@@ -1991,7 +2031,7 @@ index f4c1ad4..3ded720 100644
        this.project.play({
          onError: (error) => {
            if (error) {
-@@ -290,10 +298,11 @@ class Editor extends EditorCore {
+@@ -290,10 +302,11 @@ class Editor extends EditorCore {
          },
          onAfterTick: () => {
            //this.project.view.render();
@@ -2004,7 +2044,17 @@ index f4c1ad4..3ded720 100644
          },
        });
      }
-@@ -1083,6 +1092,7 @@ class Editor extends EditorCore {
+@@ -670,6 +683,9 @@ class Editor extends EditorCore {
+       this.project.history.pushState(window.Wick.History.StateType.ONLY_VISIBLE_OBJECTS, options.actionName);
+     }
+ 
++    // Keep the purple "editing loop" band on the timeline up to date
++    this.getLoopEdit();
++
+     // Render engine
+     this.project.view.render();
+     this.project.guiElement.draw();
+@@ -1083,6 +1099,7 @@ class Editor extends EditorCore {
                            addTweenKeyframe={this.addTweenKeyframe}
                            onRef={ref => this.timelineComponent = ref}
                            dragSoundOntoTimeline={this.dragSoundOntoTimeline}
@@ -2012,7 +2062,7 @@ index f4c1ad4..3ded720 100644
  
                            getToolSetting={this.getToolSetting}
                            setToolSetting={this.setToolSetting}
-@@ -1129,6 +1139,7 @@ class Editor extends EditorCore {
+@@ -1129,6 +1146,7 @@ class Editor extends EditorCore {
                            addTweenKeyframe={this.addTweenKeyframe}
                            onRef={ref => this.timelineComponent = ref}
                            dragSoundOntoTimeline={this.dragSoundOntoTimeline}
@@ -2021,7 +2071,7 @@ index f4c1ad4..3ded720 100644
                        </DockedPanel>
                      </ReflexElement>
 diff --git a/src/Editor/EditorCore.jsx b/src/Editor/EditorCore.jsx
-index 0383385..7eabc3b 100644
+index 0383385..e0b7479 100644
 --- a/src/Editor/EditorCore.jsx
 +++ b/src/Editor/EditorCore.jsx
 @@ -23,6 +23,7 @@ import VideoExport from './export/VideoExport';
@@ -2032,7 +2082,15 @@ index 0383385..7eabc3b 100644
  
  class EditorCore extends Component {
  
-@@ -1336,6 +1337,175 @@ class EditorCore extends Component {
+@@ -99,6 +100,7 @@ class EditorCore extends Component {
+    * Recenters the canvas.
+    */
+   recenterCanvas = () => {
++    this.project.rotation = 0; // undo any two-finger twist too
+     this.project.recenter();
+     this.projectDidChange( { skipHistory: true, actionName: "recenterCanvas"} );
+   }
+@@ -1336,6 +1338,175 @@ class EditorCore extends Component {
      this.project.prepareProjectForEditor();
    }
  
@@ -2208,7 +2266,7 @@ index 0383385..7eabc3b 100644
    openNewProjectConfirmation = () => {
      this.openWarningModal({
        description: "You will lose any unsaved changes.",
-@@ -1707,6 +1877,315 @@ class EditorCore extends Component {
+@@ -1707,6 +1878,567 @@ class EditorCore extends Component {
      return this.project.hasFont(font);
    }
  
@@ -2391,10 +2449,9 @@ index 0383385..7eabc3b 100644
 +  /**
 +   * Turn the selected frames into one loop: they go into a clip that repeats while its
 +   * frame lasts, so making the loop frame longer plays the frames again and again.
-+   * Double-tap the drawing on the canvas to edit the frames inside.
++   * Double-tap the drawing on the canvas (or tap Edit loop) to change the frames inside.
 +   */
 +  makeLoopFromSelectedFrames = () => {
-+    let Wick = window.Wick;
 +    let timeline = this.project.activeTimeline;
 +    let picked = this.project.selection.getSelectedObjects('Frame').filter(f => f.parentTimeline === timeline);
 +    if (!picked.length) {
@@ -2408,23 +2465,43 @@ index 0383385..7eabc3b 100644
 +      return;
 +    }
 +    let layers = timeline.layers.filter(l => picked.some(f => f.parentLayer === l));
-+    // Every frame on those layers between start and end goes into the loop.
++    let frames = this._framesForLoop(layers, start, end);
++    if (!frames) return;
++    let n = 1;
++    let names = new Set(timeline.frames.reduce((all, f) => all.concat(f.clips.map(c => c.identifier)), []));
++    while (names.has('Loop' + n)) n++;
++    let loopFrame = this._packLoop(layers, frames, start, end, end, { identifier: 'Loop' + n, animationType: 'loop' });
++    this.project.selection.select(loopFrame);
++    this.projectDidChange({ actionName: 'Make Loop' });
++    this.toast('Made Loop' + n + '. Make its frame longer to repeat it, or tap "Loop to end". Double-tap the drawing to edit it.', 'success');
++  }
++
++  /** Every frame on these layers between start and end, or null (with a message) if one sticks out or has a sound. */
++  _framesForLoop = (layers, start, end) => {
 +    let frames = [];
 +    for (let layer of layers) {
 +      for (let f of layer.frames) {
 +        if (f.end < start || f.start > end) continue;
 +        if (f.start < start || f.end > end) {
-+          this.toast('A frame on "' + layer.name + '" sticks out past the frames you picked. Select it too, or shorten it first.', 'error');
-+          return;
++          this.toast('A frame on "' + layer.name + '" sticks out past the loop. Select it too, or shorten it first.', 'error');
++          return null;
 +        }
 +        frames.push(f);
 +      }
 +    }
 +    if (frames.some(f => f.sound)) {
 +      this.toast('Sounds stay on the main timeline, so frames with sounds can\'t go in a loop. Move the sound to another layer first.', 'error');
-+      return;
++      return null;
 +    }
++    return frames;
++  }
 +
++  /**
++   * Move frames (start..cycleEnd) into a new loop clip, in one frame on the first layer that lasts start..totalEnd.
++   * Returns the new loop frame.
++   */
++  _packLoop = (layers, frames, start, cycleEnd, totalEnd, opts) => {
++    let Wick = window.Wick;
 +    let clip = new Wick.Clip();
 +    let placeholder = clip.timeline.layers[0];
 +    layers.forEach(layer => {
@@ -2440,52 +2517,201 @@ index 0383385..7eabc3b 100644
 +    clip.timeline.removeLayer(placeholder);
 +    clip.timeline.activeLayerIndex = 0;
 +    clip.timeline.playheadPosition = 1;
-+    let n = 1;
-+    let names = new Set(timeline.frames.reduce((all, f) => all.concat(f.clips.map(c => c.identifier)), []));
-+    while (names.has('Loop' + n)) n++;
-+    clip.identifier = 'Loop' + n;
++    clip.identifier = opts.identifier;
 +
 +    this.project.selection.clear();
++    let tl = layers[0].parentTimeline;
++    tl.deferFrameGapResolve();
 +    frames.forEach(f => f.remove());
-+    let loopFrame = new Wick.Frame({ start: start, end: end });
++    (opts.alsoRemove || []).forEach(f => f.parentLayer && f.remove());
++    let loopFrame = new Wick.Frame({ start: start, end: Math.max(cycleEnd, totalEnd) });
 +    layers[0].addFrame(loopFrame);
 +    loopFrame.addClip(clip);
-+    clip.animationType = 'loop';
++    clip.animationType = opts.animationType || 'loop';
 +    clip.isSynced = true; // follows the main timeline, so scrubbing shows the loop too
-+    this.project.selection.select(loopFrame);
-+    this.projectDidChange({ actionName: 'Make Loop' });
-+    this.toast('Made ' + clip.identifier + '. Make its frame longer to repeat it, or tap "Loop to end". Double-tap the drawing to edit the frames inside.', 'success');
++    this._fillGapsWithBlanks(tl, layers.slice(1));
++    return loopFrame;
 +  }
 +
-+  /** The loop the timeline is showing right now, if you're inside one. */
++  /** Turn gaps on these layers into blank frames (never stretch a neighbour's drawing into them). */
++  _fillGapsWithBlanks = (tl, layers) => {
++    let method = tl.fillGapsMethod;
++    tl.fillGapsMethod = 'blank_frames';
++    tl._waitToFillFrameGaps = false;
++    layers.forEach(l => { if (tl.layers.indexOf(l) !== -1) l.resolveGaps(); });
++    tl.fillGapsMethod = method;
++  }
++
++  _isBlankFrame = (f) => !f.paths.length && !f.clips.length && !f.sound && !(f.tweens && f.tweens.length)
++
++  /** The loop the timeline is showing right now, if you went inside one (older projects). */
 +  getFocusedLoop = () => {
 +    let focus = this.project.focus;
 +    return focus && !focus.isRoot && focus.isSynced ? focus : null;
 +  }
 +
-+  /** Go inside the selected loop to edit its drawings, starting at the drawing under the playhead. */
-+  editSelectedLoop = () => {
-+    let frame = this.getSelectedLoopFrame();
-+    if (!frame) return;
-+    let clip = this.getLoopInFrame(frame);
-+    let ph = this.project.activeTimeline.playheadPosition;
-+    let len = Math.max(1, clip.timeline.length);
-+    let inner = ph >= frame.start && ph <= frame.end ? ((ph - frame.start) % len) + 1 : 1;
-+    this.project.selection.clear();
-+    this.project.focus = clip;
-+    clip.timeline.playheadPosition = inner;
-+    this.projectDidChange({ actionName: 'Edit Loop' });
-+    this.toast('Editing ' + (clip.identifier || 'the loop') + '. Tap Done when you\'re finished.', 'info');
++  /**
++   * The loop being edited right on the main timeline, or null. While editing, the loop's drawings sit on
++   * the main timeline like any other frames. The loop is the drawings from its first frame up to the first
++   * empty frame. Also keeps the purple band on the timeline up to date.
++   */
++  getLoopEdit = () => {
++    let edit = this._loopEdit;
++    if (edit) {
++      let tl = this.project.root.timeline;
++      let alive = edit.project === this.project && this.project.focus.isRoot && edit.layers[0] && tl.layers.indexOf(edit.layers[0]) !== -1;
++      let packed = alive && edit.layers[0].frames.some(f => f.start === edit.start && this.getLoopInFrame(f));
++      if (!alive || packed) edit = this._loopEdit = null; // project changed, or undo put the loop back together
++    }
++    if (edit) {
++      // The loop runs from its first frame up to the next thing on its layer: the grey "repeats" frame,
++      // or the drawing that came after the loop. Push frames along and the loop grows.
++      let home = edit.layers[0];
++      let boundary = edit.boundary && edit.boundary.parentLayer === home ? edit.boundary : null;
++      let homeEnd = Math.max.apply(null, [edit.start - 1].concat(home.frames.filter(f => f.start >= edit.start).map(f => f.end)));
++      edit.cycleEnd = boundary ? boundary.start - 1 : homeEnd;
++      edit.repeatEnd = edit.placeholder && edit.placeholder.parentLayer === home ? edit.placeholder.end : edit.cycleEnd;
++    }
++    window.Wick.GUIElement.loopEdit = edit && edit.cycleEnd >= edit.start
++      ? { start: edit.start, end: Math.max(edit.repeatEnd, edit.cycleEnd), cycleEnd: edit.cycleEnd } : null;
++    return edit;
 +  }
 +
-+  /** Leave the loop and go back to the main timeline, with the loop selected. */
-+  finishEditingLoop = () => {
-+    let clip = this.getFocusedLoop();
-+    if (!clip) return;
-+    let frame = clip.parentFrame;
++  /** Open the selected loop (or the given loop clip) right here on the main timeline. */
++  editSelectedLoop = (clipArg) => {
++    let frame = clipArg && clipArg.parentFrame ? clipArg.parentFrame : this.getSelectedLoopFrame();
++    let clip = this.getLoopInFrame(frame);
++    if (!clip) return false;
++    if (!this.project.focus.isRoot || frame.parentTimeline !== this.project.root.timeline) {
++      // A loop inside another clip: fall back to going inside it.
++      this.project.selection.clear();
++      this.project.focus = clip;
++      this.projectDidChange({ actionName: 'Edit Loop' });
++      return true;
++    }
++    if (this.getLoopEdit()) this.finishEditingLoop(true);
++    let Wick = window.Wick, paper = window.paper;
++    let tl = this.project.root.timeline;
++    let home = frame.parentLayer;
++    let start = frame.start, totalEnd = frame.end;
++    let cycle = Math.max(1, clip.timeline.length);
++    let cycleEnd = start + cycle - 1;
++    let ph = tl.playheadPosition;
++    let innerPh = ph >= start && ph <= totalEnd ? ((ph - start) % cycle) + 1 : 1;
++
++    // Where each of the loop's layers goes: its home layer first, then layers with the same name below it,
++    // or a new layer if that spot is taken.
++    let used = new Set([home]);
++    let created = [];
++    let inSpan = (f) => f.start <= cycleEnd && f.end >= start;
++    let isFree = (layer) => !layer.frames.some(f => inSpan(f) && !this._isBlankFrame(f));
++    let targets = clip.timeline.layers.map((inner, i) => {
++      if (i === 0) return home;
++      let match = tl.layers.find(l => !used.has(l) && l.name === inner.name && isFree(l));
++      if (!match) {
++        match = new Wick.Layer({ name: inner.name });
++        tl.addLayer(match);
++        tl.moveLayer(match, tl.layers.indexOf(home) + i);
++        created.push(match);
++      }
++      used.add(match);
++      return match;
++    });
++
++    // The loop's position, size and turn get baked into its drawings so nothing jumps.
++    let t = clip.transformation;
++    let moved = t.x || t.y || t.rotation || t.scaleX !== 1 || t.scaleY !== 1;
++    let m = new paper.Matrix().translate(t.x, t.y).rotate(t.rotation).scale(t.scaleX, t.scaleY);
++    let place = (copy) => {
++      if (!moved) return;
++      copy.paths.forEach(path => {
++        if (!path.view.item) path.view.render();
++        let item = path.view.item.clone({ insert: false });
++        item.transform(m);
++        path.json = item.exportJSON({ asString: false });
++      });
++      copy.clips.forEach(c => {
++        let pt = m.transform(new paper.Point(c.transformation.x, c.transformation.y));
++        c.transformation.x = pt.x;
++        c.transformation.y = pt.y;
++        c.transformation.rotation += t.rotation;
++        c.transformation.scaleX *= t.scaleX;
++        c.transformation.scaleY *= t.scaleY;
++      });
++    };
++
++    let copies = [];
++    clip.timeline.layers.forEach((inner, i) => inner.frames.forEach(f => {
++      let copy = f.copy();
++      copy.start = f.start + start - 1;
++      copy.end = f.end + start - 1;
++      copies.push({ copy: copy, layer: targets[i] });
++    }));
 +    this.project.selection.clear();
-+    this.project.focus = clip.parentClip;
-+    if (frame) this.project.selection.select(frame);
++    tl.deferFrameGapResolve();
++    let next = home.frames.filter(f => f.start > totalEnd).sort((x, y) => x.start - y.start)[0] || null;
++    frame.remove();
++    // Blank frames in the way on the other layers make room.
++    targets.slice(1).forEach(l => l.frames.filter(f => inSpan(f) && this._isBlankFrame(f)).forEach(f => f.remove()));
++    copies.forEach(({ copy, layer }) => { layer.addFrame(copy); place(copy); });
++    // The rest of the loop's time (the repeats) is held by a blank frame, so the loop knows where it ends.
++    let placeholder = null;
++    if (totalEnd > cycleEnd) {
++      placeholder = new Wick.Frame({ start: cycleEnd + 1, end: totalEnd });
++      home.addFrame(placeholder);
++    }
++    this._fillGapsWithBlanks(tl, targets.slice(1));
++
++    this._loopEdit = { project: this.project, layers: targets, created: created, start: start, totalEnd: totalEnd,
++      placeholder: placeholder, boundary: placeholder || next,
++      identifier: clip.identifier, animationType: clip.animationType };
++    tl.playheadPosition = start + innerPh - 1;
++    tl.activeLayerIndex = tl.layers.indexOf(home);
++    this.getLoopEdit();
++    this.projectDidChange({ actionName: 'Edit Loop' });
++    this.toast('Editing ' + (clip.identifier || 'the loop') + ' right here. The purple bar shows the loop. Tap Done when you\'re finished.', 'info');
++    return true;
++  }
++
++  /** Put the loop back together from the drawings on the main timeline (or leave a loop you went inside). */
++  finishEditingLoop = (quiet) => {
++    let edit = this.getLoopEdit();
++    if (!edit) {
++      let clip = this.getFocusedLoop();
++      if (!clip) return;
++      let frame = clip.parentFrame;
++      this.project.selection.clear();
++      this.project.focus = clip.parentClip;
++      if (frame) this.project.selection.select(frame);
++      this.projectDidChange({ actionName: 'Finish Editing Loop' });
++      return;
++    }
++    this._loopEdit = null;
++    window.Wick.GUIElement.loopEdit = null;
++    let tl = this.project.root.timeline;
++    let layers = edit.layers.filter(l => tl.layers.indexOf(l) !== -1);
++    let cycleEnd = edit.cycleEnd;
++    if (!layers.length || cycleEnd < edit.start) {
++      if (quiet !== true) this.toast('The loop was empty, so it was removed.', 'info');
++      this.projectDidChange({ actionName: 'Finish Editing Loop' });
++      return;
++    }
++    let home = layers[0];
++    let placeholder = edit.placeholder && edit.placeholder.parentLayer === home ? edit.placeholder : null;
++    let totalEnd = placeholder ? placeholder.end : cycleEnd;
++    let frames = [];
++    layers.forEach(l => l.frames.forEach(f => { if (f.start >= edit.start && f.start <= cycleEnd) frames.push(f); }));
++    frames.forEach(f => { if (f.end > cycleEnd) f.end = cycleEnd; }); // nothing pokes out of the loop
++    if (frames.some(f => f.sound)) {
++      this._loopEdit = edit;
++      this.toast('A sound got into the loop. Move it to another layer, then tap Done again.', 'error');
++      return;
++    }
++    let loopFrame = this._packLoop(layers, frames, edit.start, cycleEnd, totalEnd,
++      { identifier: edit.identifier, animationType: edit.animationType, alsoRemove: placeholder ? [placeholder] : [] });
++    edit.created.forEach(l => { if (l.frames.every(this._isBlankFrame) && tl.layers.length > 1) tl.removeLayer(l); });
++    tl.activeLayerIndex = Math.max(0, tl.layers.indexOf(home));
++    this.project.selection.select(loopFrame);
 +    this.projectDidChange({ actionName: 'Finish Editing Loop' });
 +  }
 +
@@ -2521,6 +2747,90 @@ index 0383385..7eabc3b 100644
 +    this.projectDidChange({ actionName: 'Loop To End' });
 +  }
 +
++  /* ---------- Duplicate, reverse and inbetween (timeline strip) ---------- */
++
++  /** Selected frames on the timeline you're looking at, or the frame under the playhead. */
++  _pickedFrames = () => this.getFrameLengthTargets().filter(f => f.parentTimeline === this.project.activeTimeline);
++
++  /** Copy the selected frames (or the frame under the playhead) and put the copy right after them. */
++  duplicateFrames = () => {
++    let frames = this._pickedFrames();
++    if (!frames.length) { this.toast('Tap a frame in the timeline first.', 'info'); return; }
++    let start = Math.min.apply(null, frames.map(f => f.start));
++    let end = Math.max.apply(null, frames.map(f => f.end));
++    let size = end - start + 1;
++    let push = this.getFrameLengthMode() === 'push';
++    let layers = Array.from(new Set(frames.map(f => f.parentLayer)));
++    if (push) {
++      layers.forEach(l => l.frames.filter(f => f.start > end).forEach(f => { f.start += size; f.end += size; }));
++    }
++    let copies = frames.map(f => {
++      let copy = f.copy();
++      copy.start = f.start + size;
++      copy.end = f.end + size;
++      f.parentLayer.addFrame(copy);
++      return copy;
++    });
++    if (!push) this.project.activeTimeline.resolveFrameOverlap(copies);
++    this.project.selection.clear();
++    copies.forEach(c => this.project.selection.select(c));
++    this.project.activeTimeline.playheadPosition = start + size;
++    this.projectDidChange({ actionName: 'Duplicate Frames' });
++  }
++
++  /** Play the selected frames backwards: the last drawing comes first. Lengths and gaps stay the same. */
++  reverseFrames = () => {
++    let frames = this.project.selection.getSelectedObjects('Frame').filter(f => f.parentTimeline === this.project.activeTimeline);
++    if (frames.length < 2) { this.toast('Select 2 or more frames to reverse: drag across them in the timeline.', 'info'); return; }
++    let start = Math.min.apply(null, frames.map(f => f.start));
++    let end = Math.max.apply(null, frames.map(f => f.end));
++    let layers = Array.from(new Set(frames.map(f => f.parentLayer)));
++    // Everything on those layers in that span flips, so nothing ends up on top of something else.
++    let all = [];
++    layers.forEach(l => l.frames.forEach(f => { if (f.start <= end && f.end >= start) all.push(f); }));
++    if (all.some(f => f.start < start || f.end > end)) {
++      this.toast('A frame sticks out past the ones you picked. Select it too, or shorten it first.', 'error');
++      return;
++    }
++    let spans = all.map(f => [start + end - f.end, start + end - f.start]);
++    all.forEach((f, i) => { f.start = spans[i][0]; f.end = spans[i][1]; });
++    if (all.some(f => f.tweens && f.tweens.length)) this.toast('Reversed. Tweens inside those frames still play forwards.', 'info');
++    this.projectDidChange({ actionName: 'Reverse Frames' });
++  }
++
++  /**
++   * Add a blank in-between drawing halfway between this drawing and the next one on the same layer,
++   * with onion skin on so both show while you draw it.
++   */
++  addInbetween = () => {
++    let Wick = window.Wick;
++    let picked = this._pickedFrames();
++    let a = picked.length === 1 ? picked[0] : null;
++    if (!a) { this.toast('Tap the drawing that comes before the in-between.', 'info'); return; }
++    let layer = a.parentLayer;
++    let b = layer.frames.filter(f => f.start > a.end).sort((x, y) => x.start - y.start)[0];
++    if (!b) { this.toast('An in-between goes between two drawings. Add the next drawing on this layer first.', 'info'); return; }
++    if (this.getLoopInFrame(a) || this.getLoopInFrame(b)) { this.toast('In-betweens go between drawings, not loops.', 'info'); return; }
++    if (b.start - a.start < 2) {
++      // No room: push everything after this drawing along by one frame.
++      layer.frames.filter(f => f.start >= b.start).forEach(f => { f.start += 1; f.end += 1; });
++    }
++    let mid = a.start + Math.floor((b.start - a.start) / 2);
++    a.end = Math.min(a.end, mid - 1);
++    let tween = new Wick.Frame({ start: mid, end: b.start - 1 });
++    layer.addFrame(tween);
++    let tl = this.project.activeTimeline;
++    tl.playheadPosition = mid;
++    tl.activeLayerIndex = tl.layers.indexOf(layer);
++    this.project.onionSkinEnabled = true;
++    this.project.onionSkinSeekBackwards = Math.max(this.project.onionSkinSeekBackwards, mid - a.end);
++    this.project.onionSkinSeekForwards = Math.max(this.project.onionSkinSeekForwards, b.start - mid);
++    this.project.selection.clear();
++    this.project.selection.select(tween);
++    this.projectDidChange({ actionName: 'Add In-between' });
++    this.toast('Draw the in-between. Onion skin shows the drawing before and after it.', 'info');
++  }
++
    extendFrame = () => {
        var frames = this.project.selection.getSelectedObjects('Frame');
        this.project.extendFrames(frames);
@@ -2541,6 +2851,435 @@ index d19a6c0..8aac91a 100644
                      project={props.editor.project}
                      createClipFromSelection={props.editor.createClipFromSelection}
                      createButtonFromSelection={props.editor.createButtonFromSelection}
+diff --git a/src/Editor/Gestures/canvasGestures.js b/src/Editor/Gestures/canvasGestures.js
+new file mode 100644
+index 0000000..d64c90d
+--- /dev/null
++++ b/src/Editor/Gestures/canvasGestures.js
+@@ -0,0 +1,423 @@
++/*
++ * Touch gestures for the canvas (iPad):
++ *   - two fingers: pinch to zoom, drag to pan, twist to rotate (snaps back to straight near 0°)
++ *   - two-finger tap: undo, three-finger tap: redo
++ *   - snap to shape: draw a line, circle, triangle or rectangle with the brush or pencil, then hold
++ *     your finger still for a moment before lifting. The wobbly stroke turns into a clean shape.
++ *
++ * A single finger is held back for a split second so a second finger can join without leaving a mark.
++ * Apple Pencil strokes go straight through.
++ *
++ * This file is part of a modified version of Wick Editor and is licensed
++ * under the GNU General Public License v3 or later.
++ */
++
++const HOLD_BACK_MS = 70;      // how long one finger waits to see if a second one is coming
++const TAP_MAX_MS = 300;       // a quick two- or three-finger touch counts as a tap
++const TAP_MAX_MOVE = 14;      // px
++const SNAP_HOLD_MS = 550;     // hold still this long at the end of a stroke to snap it
++const SNAP_STILL_PX = 6;
++const ROTATE_START_DEG = 12;  // twist this far before the canvas starts turning
++const ROTATE_SNAP_DEG = 7;    // ends up straight if it's this close to 0°
++
++export default function installCanvasGestures (editor) {
++  if (window.__keyflameGestures) return;
++  window.__keyflameGestures = true;
++
++  let state = 'idle'; // idle | pending | drawing | gesture | snapped
++  let buffer = [];
++  let timer = null;
++  let replaying = new WeakSet();
++  let canReplay = true;
++  let g = null;       // gesture info
++  let stroke = null;  // points of the current stroke, for snap to shape
++  let snapTimer = null;
++
++  const project = () => editor.project;
++  const paperView = () => project() && project().view && project().view.paper && project().view.paper.view;
++  const container = () => project() && project().view && project().view.canvasContainer;
++  const inCanvas = (target) => {
++    let c = container();
++    return !!(c && target && target.nodeType === 1 && c.contains(target) && target.tagName === 'CANVAS');
++  };
++  const isStylus = (t) => t && t.touchType === 'stylus';
++  const block = (e) => { e.stopImmediatePropagation(); if (e.cancelable) e.preventDefault(); };
++  const playing = () => editor.state && editor.state.previewPlaying;
++
++  /* ----- holding back one finger ----- */
++
++  function flush () {
++    clearTimeout(timer);
++    timer = null;
++    let events = buffer;
++    buffer = [];
++    state = 'drawing';
++    for (let ev of events) {
++      try {
++        replaying.add(ev);
++        ev.target.dispatchEvent(ev);
++      } catch (err) {
++        // This browser won't re-send touches; stop holding them back from now on.
++        canReplay = false;
++        console.warn('Touch replay not supported', err);
++        break;
++      }
++    }
++  }
++
++  /* ----- two-finger view changes ----- */
++
++  function fingers (touches) {
++    let list = Array.from(touches).slice(0, 2);
++    let pv = paperView();
++    let rect = pv.element.getBoundingClientRect();
++    let a = { x: list[0].clientX - rect.left, y: list[0].clientY - rect.top };
++    let b = list[1] ? { x: list[1].clientX - rect.left, y: list[1].clientY - rect.top } : a;
++    return {
++      cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2,
++      dist: Math.max(1, Math.hypot(b.x - a.x, b.y - a.y)),
++      angle: Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI,
++    };
++  }
++
++  function startGesture (e) {
++    let pv = paperView();
++    let f = fingers(e.touches);
++    g = {
++      time: Date.now(), maxTouches: e.touches.length, moved: false, rotating: false,
++      start: f, zoom: pv.zoom, rotation: project().rotation || 0,
++      anchor: pv.viewToProject(new window.paper.Point(f.cx, f.cy)),
++      frame: null,
++    };
++  }
++
++  function moveGesture (e) {
++    if (e.touches.length < 2) return;
++    g.maxTouches = Math.max(g.maxTouches, e.touches.length);
++    let f = fingers(e.touches);
++    let s = g.start;
++    let twist = ((f.angle - s.angle + 540) % 360) - 180;
++    if (!g.moved && (Math.abs(f.dist - s.dist) > TAP_MAX_MOVE || Math.hypot(f.cx - s.cx, f.cy - s.cy) > TAP_MAX_MOVE)) g.moved = true;
++    if (!g.rotating && Math.abs(twist) > ROTATE_START_DEG) { g.rotating = true; g.moved = true; g.twistOffset = twist; }
++    if (!g.moved || g.maxTouches > 2) return;
++    g.next = { f: f, twist: g.rotating ? twist : 0 };
++    if (!g.frame) g.frame = window.requestAnimationFrame(applyGesture);
++  }
++
++  function applyGesture () {
++    g.frame = null;
++    if (!g || !g.next) return;
++    let pv = paperView();
++    let { f, twist } = g.next;
++    let view = project().view;
++    let zoom = Math.min(10, Math.max(0.1, g.zoom * f.dist / g.start.dist));
++    let rotation = g.rotation + twist;
++    project().rotation = rotation;
++    pv.rotation = rotation;
++    pv.zoom = zoom;
++    let here = pv.viewToProject(new window.paper.Point(f.cx, f.cy));
++    pv.center = pv.center.add(g.anchor.subtract(here));
++    view._applyZoomAndPanChangesFromPaper();
++  }
++
++  function endGesture () {
++    if (g.frame) { window.cancelAnimationFrame(g.frame); g.frame = null; }
++    let quick = Date.now() - g.time < TAP_MAX_MS;
++    if (!g.moved && quick) {
++      if (g.maxTouches >= 3) editor.redoAction();
++      else editor.undoAction();
++    } else if (g.moved) {
++      // Close to straight? Make it straight.
++      let r = ((project().rotation % 360) + 360) % 360;
++      if (r > 180) r -= 360;
++      if (Math.abs(r) < ROTATE_SNAP_DEG && r !== 0) {
++        let pv = paperView();
++        let c = pv.center;
++        project().rotation = 0;
++        pv.rotation = 0;
++        pv.center = c;
++        project().view._applyZoomAndPanChangesFromPaper();
++      }
++      editor.projectDidChange({ skipHistory: true, actionName: 'Move Canvas' });
++    }
++    g = null;
++  }
++
++  /** A stroke was already drawing when a second finger came down: throw that stroke away. */
++  function cancelStroke () {
++    let tool = project().activeTool;
++    try {
++      if (tool && typeof tool.discard === 'function') tool.discard();
++      if (tool && tool.path && tool.path.remove) { tool.path.remove(); tool.path = null; }
++      if (tool && typeof tool.reset === 'function' && tool !== project().tools.brush) tool.reset();
++    } catch (err) { console.warn(err); }
++    project().view.render();
++  }
++
++  /**
++   * Let a finger's release reach the drawing code without doing anything, so it knows the touch is over.
++   * (The stroke was already thrown away or turned into a shape.)
++   */
++  function releaseQuietly () {
++    let p = project();
++    let tool = p.activeTool;
++    let none = p.tools && p.tools.none;
++    if (!none || !none.paperTool || !tool || !tool.paperTool) return;
++    none.paperTool.activate();
++    setTimeout(() => { if (p.activeTool === tool) tool.paperTool.activate(); }, 0);
++  }
++
++  /* ----- snap to shape ----- */
++
++  function snapTool () {
++    let p = project();
++    let tool = p.activeTool;
++    if (tool === p.tools.brush || tool === p.tools.pencil) return tool;
++    return null;
++  }
++
++  function strokePoint (touch) {
++    let pv = paperView();
++    let rect = pv.element.getBoundingClientRect();
++    return { screen: { x: touch.clientX, y: touch.clientY }, at: pv.viewToProject(new window.paper.Point(touch.clientX - rect.left, touch.clientY - rect.top)) };
++  }
++
++  function armSnap () {
++    clearTimeout(snapTimer);
++    snapTimer = setTimeout(trySnap, SNAP_HOLD_MS);
++  }
++
++  function trySnap () {
++    if (state !== 'drawing' || !stroke || !snapTool()) return;
++    let shape = recognize(stroke.points.map(p => p.at));
++    if (!shape) return;
++    let p = project();
++    let tool = snapTool();
++    let paper = window.paper;
++    let width, color;
++    if (tool === p.tools.brush) {
++      let size = tool.getSetting('brushSize') + 1;
++      width = tool.getSetting('relativeBrushSize') ? size / paperView().zoom : size;
++      color = tool.getSetting('fillColor').rgba;
++    } else {
++      width = tool.getSetting('strokeWidth');
++      color = tool.getSetting('strokeColor').rgba;
++    }
++    cancelStroke();
++    let path;
++    if (shape.type === 'line') {
++      path = new paper.Path.Line({ from: shape.from, to: shape.to, insert: false });
++    } else if (shape.type === 'ellipse') {
++      path = new paper.Path.Ellipse({ center: shape.center, radius: shape.radius, insert: false });
++      if (shape.rotation) path.rotate(shape.rotation, shape.center);
++    } else {
++      path = new paper.Path({ segments: shape.points, closed: true, insert: false });
++    }
++    path.strokeColor = color;
++    path.strokeWidth = width;
++    path.strokeCap = 'round';
++    path.strokeJoin = 'round';
++    path.fillColor = null;
++    tool.addPathToProject(path);
++    tool.fireEvent({ eventName: 'canvasModified', actionName: 'snapToShape' });
++    state = 'snapped'; // ignore the rest of this touch
++    stroke = null;
++  }
++
++  /* ----- touch handlers (capture phase, before the drawing tools see anything) ----- */
++
++  function onStart (e) {
++    if (replaying.has(e)) { replaying.delete(e); return; }
++    if (!inCanvas(e.target) || playing()) return;
++    let touches = e.touches;
++    let stylus = Array.from(touches).some(isStylus);
++
++    if (state === 'idle' || (state === 'snapped' && touches.length === 1)) {
++      if (touches.length === 1) {
++        stroke = { points: [strokePoint(touches[0])], last: Date.now() };
++        if (stylus || !canReplay) { state = 'drawing'; armSnap(); return; }
++        state = 'pending';
++        buffer = [e];
++        timer = setTimeout(() => { flush(); armSnap(); }, HOLD_BACK_MS);
++        block(e);
++        return;
++      }
++      state = 'gesture';
++      startGesture(e);
++      block(e);
++      return;
++    }
++    if (state === 'pending') {
++      clearTimeout(timer);
++      buffer = [];
++      state = 'gesture';
++      startGesture(e);
++      block(e);
++      return;
++    }
++    if (state === 'drawing') {
++      if (stylus) return; // a palm next to the Pencil: leave the stroke alone
++      clearTimeout(snapTimer);
++      cancelStroke();
++      state = 'gesture';
++      startGesture(e);
++      g.fromDrawing = true;
++      block(e);
++      return;
++    }
++    if (state === 'gesture' || state === 'snapped') {
++      if (state === 'gesture') g.maxTouches = Math.max(g.maxTouches, touches.length);
++      block(e);
++    }
++  }
++
++  function onMove (e) {
++    if (replaying.has(e)) { replaying.delete(e); return; }
++    if (state === 'pending') {
++      let t = e.touches[0];
++      if (t && stroke) {
++        stroke.points.push(strokePoint(t));
++        let s = stroke.points[0].screen;
++        if (Math.hypot(t.clientX - s.x, t.clientY - s.y) > 24) {
++          // Clearly drawing: send what was held back, then let this touch through as usual.
++          flush();
++          armSnap();
++          return;
++        }
++      }
++      buffer.push(e);
++      block(e);
++      return;
++    }
++    if (state === 'gesture') { moveGesture(e); block(e); return; }
++    if (state === 'snapped') { block(e); return; }
++    if (state === 'drawing' && stroke && e.touches[0]) {
++      let pt = strokePoint(e.touches[0]);
++      stroke.points.push(pt);
++      // Restart the hold timer whenever the finger wanders away from where it last rested.
++      let rest = stroke.rest || stroke.points[0].screen;
++      if (Math.hypot(pt.screen.x - rest.x, pt.screen.y - rest.y) > SNAP_STILL_PX) { stroke.rest = pt.screen; armSnap(); }
++    }
++  }
++
++  function onEnd (e) {
++    if (replaying.has(e)) { replaying.delete(e); return; }
++    if (state === 'pending') {
++      // A quick one-finger tap: send it on now.
++      flush();
++      if (!canReplay) return;
++      state = e.touches.length ? 'drawing' : 'idle';
++      stroke = null;
++      return; // this touchend goes through normally
++    }
++    if (state === 'gesture') {
++      if (e.touches.length === 0) {
++        let fromDrawing = g.fromDrawing;
++        endGesture();
++        state = 'idle';
++        if (fromDrawing) { releaseQuietly(); return; }
++      }
++      block(e);
++      return;
++    }
++    if (state === 'snapped') {
++      if (e.touches.length === 0) { state = 'idle'; releaseQuietly(); return; }
++      block(e);
++      return;
++    }
++    if (state === 'drawing' && e.touches.length === 0) {
++      clearTimeout(snapTimer);
++      stroke = null;
++      state = 'idle';
++    }
++  }
++
++  let opts = { capture: true, passive: false };
++  window.addEventListener('touchstart', onStart, opts);
++  window.addEventListener('touchmove', onMove, opts);
++  window.addEventListener('touchend', onEnd, opts);
++  window.addEventListener('touchcancel', onEnd, opts);
++}
++
++/* ---------- shape recognition ---------- */
++
++function dist (a, b) { return Math.hypot(a.x - b.x, a.y - b.y); }
++
++function distToSegment (p, a, b) {
++  let l2 = (b.x - a.x) ** 2 + (b.y - a.y) ** 2;
++  if (!l2) return dist(p, a);
++  let t = Math.max(0, Math.min(1, ((p.x - a.x) * (b.x - a.x) + (p.y - a.y) * (b.y - a.y)) / l2));
++  return dist(p, { x: a.x + t * (b.x - a.x), y: a.y + t * (b.y - a.y) });
++}
++
++function simplify (pts, eps) {
++  if (pts.length < 3) return pts.slice();
++  let maxD = 0, idx = 0;
++  for (let i = 1; i < pts.length - 1; i++) {
++    let d = distToSegment(pts[i], pts[0], pts[pts.length - 1]);
++    if (d > maxD) { maxD = d; idx = i; }
++  }
++  if (maxD <= eps) return [pts[0], pts[pts.length - 1]];
++  let left = simplify(pts.slice(0, idx + 1), eps);
++  let right = simplify(pts.slice(idx), eps);
++  return left.slice(0, -1).concat(right);
++}
++
++/** Guess what shape a wobbly stroke was meant to be. Returns null if it doesn't look like one. */
++export function recognize (raw) {
++  let pts = raw.map(p => ({ x: p.x, y: p.y }));
++  // drop points that barely moved
++  pts = pts.filter((p, i) => i === 0 || dist(p, pts[i - 1]) > 0.5);
++  if (pts.length < 4) return null;
++  let xs = pts.map(p => p.x), ys = pts.map(p => p.y);
++  let minX = Math.min.apply(null, xs), maxX = Math.max.apply(null, xs);
++  let minY = Math.min.apply(null, ys), maxY = Math.max.apply(null, ys);
++  let size = Math.max(maxX - minX, maxY - minY);
++  if (size < 12) return null;
++  let first = pts[0], last = pts[pts.length - 1];
++  let length = 0;
++  for (let i = 1; i < pts.length; i++) length += dist(pts[i], pts[i - 1]);
++
++  // A line: every point stays close to the line from start to end.
++  let span = dist(first, last);
++  if (span > size * 0.8 && pts.every(p => distToSegment(p, first, last) < Math.max(4, span * 0.07))) {
++    return { type: 'line', from: first, to: last };
++  }
++
++  // Closed shapes: the stroke comes back near where it started.
++  let closed = span < size * 0.3 || span < length * 0.12;
++  if (!closed) return null;
++
++  let corners = simplify(pts.concat([first]), size * 0.12);
++  // Drop the repeated start point at the end, and merge corners that sit too close together.
++  if (corners.length > 1 && dist(corners[0], corners[corners.length - 1]) < size * 0.2) corners.pop();
++  corners = corners.filter((c, i) => i === 0 || dist(c, corners[i - 1]) > size * 0.15);
++
++  let cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
++  let rx = (maxX - minX) / 2, ry = (maxY - minY) / 2;
++  // How round is it? Average distance from a perfect ellipse in the same box.
++  let ellipseErr = pts.reduce((sum, p) => {
++    let nx = (p.x - cx) / Math.max(rx, 1), ny = (p.y - cy) / Math.max(ry, 1);
++    return sum + Math.abs(Math.hypot(nx, ny) - 1);
++  }, 0) / pts.length;
++
++  if (corners.length === 3 && ellipseErr > 0.08) return { type: 'polygon', points: corners };
++  if (corners.length === 4 && ellipseErr > 0.08) {
++    // Nearly square to the page? Make it a neat rectangle.
++    let edgesStraight = corners.every((c, i) => {
++      let n = corners[(i + 1) % 4];
++      let ang = Math.abs(Math.atan2(n.y - c.y, n.x - c.x) * 180 / Math.PI) % 90;
++      return ang < 12 || ang > 78;
++    });
++    if (edgesStraight) {
++      return { type: 'polygon', points: [{ x: minX, y: minY }, { x: maxX, y: minY }, { x: maxX, y: maxY }, { x: minX, y: maxY }] };
++    }
++    return { type: 'polygon', points: corners };
++  }
++  if (ellipseErr < 0.22) {
++    // Close to a circle? Make it a perfect circle.
++    if (Math.abs(rx - ry) < Math.max(rx, ry) * 0.15) { let r = (rx + ry) / 2; rx = r; ry = r; }
++    return { type: 'ellipse', center: { x: cx, y: cy }, radius: [rx, ry] };
++  }
++  return null;
++}
 diff --git a/src/Editor/Modals/BuiltinLibrary/BuiltinLibrary.jsx b/src/Editor/Modals/BuiltinLibrary/BuiltinLibrary.jsx
 index d30e413..fc812b3 100644
 --- a/src/Editor/Modals/BuiltinLibrary/BuiltinLibrary.jsx
@@ -5262,10 +6001,10 @@ index 719cfcd..b4b47be 100644
    }
 diff --git a/src/Editor/Panels/Timeline/TimelineTools/TimelineTools.jsx b/src/Editor/Panels/Timeline/TimelineTools/TimelineTools.jsx
 new file mode 100644
-index 0000000..058ce7d
+index 0000000..a08ae0c
 --- /dev/null
 +++ b/src/Editor/Panels/Timeline/TimelineTools/TimelineTools.jsx
-@@ -0,0 +1,70 @@
+@@ -0,0 +1,76 @@
 +/*
 + * Buttons in the timeline's top row: make a drawing one frame longer or shorter,
 + * choose whether that pushes or overwrites the frames next to it, and turn
@@ -5283,7 +6022,8 @@ index 0000000..058ce7d
 +  if (!editor || !editor.changeFrameLength) return null;
 +  let mode = editor.getFrameLengthMode();
 +  let loopFrame = editor.getSelectedLoopFrame();
-+  let focusedLoop = editor.getFocusedLoop();
++  let loopEdit = editor.getLoopEdit();
++  let focusedLoop = loopEdit ? { identifier: loopEdit.identifier } : editor.getFocusedLoop();
 +  editor.syncPlayRangeToTimeline();
 +  let range = editor.getPlayRange();
 +  let repeat = editor.getPlayRepeat();
@@ -5319,14 +6059,19 @@ index 0000000..058ce7d
 +        <button className={'tt-btn' + (mode === 'overwrite' ? ' tt-on' : '')} aria-pressed={mode === 'overwrite'}
 +          title='Longer frames cover the next frames. Shorter frames leave a gap.' onClick={() => editor.setFrameLengthMode('overwrite')}>Overwrite</button>
 +      </div>
++      <div className='timeline-tools-group' role='group' aria-label='Frames'>
++        <button className='tt-btn' title='Add a blank drawing halfway to the next drawing, with onion skin on' onClick={editor.addInbetween}>½ In-between</button>
++        <button className='tt-btn' title='Copy the selected frames and put the copy right after them' onClick={editor.duplicateFrames}>⧉ Duplicate</button>
++        <button className='tt-btn' title='Play the selected frames backwards' onClick={editor.reverseFrames}>⇄ Reverse</button>
++      </div>
 +      {focusedLoop &&
 +        <div className='timeline-tools-group' role='group' aria-label='Editing loop'>
 +          <span className='tt-editing'>Editing {focusedLoop.identifier || 'loop'}</span>
-+          <button className='tt-btn tt-done' title='Go back to the main timeline' onClick={editor.finishEditingLoop}>Done</button>
++          <button className='tt-btn tt-done' title='Put the loop back together' onClick={() => editor.finishEditingLoop()}>Done</button>
 +        </div>}
 +      {loopFrame
 +        ? <div className='timeline-tools-group' role='group' aria-label='Loop'>
-+            <button className='tt-btn tt-loop' title='Go inside the loop to change its drawings' onClick={editor.editSelectedLoop}>Edit loop</button>
++            <button className='tt-btn tt-loop' title='Open the loop right here to change its drawings' onClick={() => editor.editSelectedLoop()}>Edit loop</button>
 +            <button className='tt-btn tt-loop' title='Play the loop one more time' onClick={editor.repeatSelectedLoop}>⟳ +1 loop</button>
 +            <button className='tt-btn tt-loop' title='Keep looping until the end of the animation' onClick={editor.loopSelectedToEnd}>Loop to end</button>
 +          </div>
