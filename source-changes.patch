@@ -2381,7 +2381,7 @@ index 0000000..c11d425
 +}
 \ No newline at end of file
 diff --git a/src/Editor/Editor.jsx b/src/Editor/Editor.jsx
-index f4c1ad4..c0487f6 100644
+index f4c1ad4..af0f49e 100644
 --- a/src/Editor/Editor.jsx
 +++ b/src/Editor/Editor.jsx
 @@ -160,6 +160,13 @@ class Editor extends EditorCore {
@@ -2398,8 +2398,24 @@ index f4c1ad4..c0487f6 100644
  
      // Wick Project File Input
      this.openProjectFileFromClient = window.createFileInput({
+@@ -1083,6 +1090,7 @@ class Editor extends EditorCore {
+                           addTweenKeyframe={this.addTweenKeyframe}
+                           onRef={ref => this.timelineComponent = ref}
+                           dragSoundOntoTimeline={this.dragSoundOntoTimeline}
++                          editor={this}
+ 
+                           getToolSetting={this.getToolSetting}
+                           setToolSetting={this.setToolSetting}
+@@ -1129,6 +1137,7 @@ class Editor extends EditorCore {
+                           addTweenKeyframe={this.addTweenKeyframe}
+                           onRef={ref => this.timelineComponent = ref}
+                           dragSoundOntoTimeline={this.dragSoundOntoTimeline}
++                          editor={this}
+                         />}
+                       </DockedPanel>
+                     </ReflexElement>
 diff --git a/src/Editor/EditorCore.jsx b/src/Editor/EditorCore.jsx
-index 0383385..4f73f88 100644
+index 0383385..a82ec6e 100644
 --- a/src/Editor/EditorCore.jsx
 +++ b/src/Editor/EditorCore.jsx
 @@ -23,6 +23,7 @@ import VideoExport from './export/VideoExport';
@@ -2586,6 +2602,168 @@ index 0383385..4f73f88 100644
    openNewProjectConfirmation = () => {
      this.openWarningModal({
        description: "You will lose any unsaved changes.",
+@@ -1707,6 +1877,161 @@ class EditorCore extends Component {
+     return this.project.hasFont(font);
+   }
+ 
++  /* ---------- Frame length buttons and loops (timeline strip) ---------- */
++
++  /** 'push' moves later frames along; 'overwrite' covers or uncovers the frames next to it. */
++  getFrameLengthMode = () => {
++    try { return window.localStorage.getItem('frameLengthMode') === 'overwrite' ? 'overwrite' : 'push'; } catch (e) { return 'push'; }
++  }
++
++  setFrameLengthMode = (mode) => {
++    try { window.localStorage.setItem('frameLengthMode', mode); } catch (e) {}
++    this.forceUpdate();
++  }
++
++  /** Selected frames, or the frame under the playhead on the active layer. */
++  getFrameLengthTargets = () => {
++    let frames = this.project.selection.getSelectedObjects('Frame');
++    if (frames.length) return frames;
++    let layer = this.project.activeLayer;
++    let frame = layer && layer.getFrameAtPlayheadPosition(this.project.activeTimeline.playheadPosition);
++    return frame ? [frame] : [];
++  }
++
++  changeFrameLength = (delta) => {
++    let frames = this.getFrameLengthTargets();
++    if (!frames.length) {
++      this.toast('Tap a frame in the timeline first.', 'info');
++      return;
++    }
++    let push = this.getFrameLengthMode() === 'push';
++    if (delta > 0) {
++      if (push) this.project.extendFramesAndPushOtherFrames(frames);
++      else this.project.extendFrames(frames);
++    } else {
++      if (frames.every(f => f.length <= 1)) {
++        this.toast('That drawing is already 1 frame long.', 'info');
++        return;
++      }
++      if (push) this.project.shrinkFramesAndPullOtherFrames(frames);
++      else this.project.shrinkFrames(frames);
++    }
++    this.projectDidChange({ actionName: delta > 0 ? 'Make Frame Longer' : 'Make Frame Shorter' });
++  }
++
++  /** The loop clip in a frame, if the frame is a loop made with the Loop button (or any synced clip). */
++  getLoopInFrame = (frame) => {
++    if (!frame || frame.clips.length !== 1 || frame.paths.length) return null;
++    let clip = frame.clips[0];
++    return clip.isSynced && clip.animationType !== 'single' ? clip : null;
++  }
++
++  getSelectedLoopFrame = () => {
++    let frames = this.project.selection.getSelectedObjects('Frame');
++    return frames.length === 1 && this.getLoopInFrame(frames[0]) ? frames[0] : null;
++  }
++
++  /**
++   * Turn the selected frames into one loop: they go into a clip that repeats while its
++   * frame lasts, so making the loop frame longer plays the frames again and again.
++   * Double-tap the drawing on the canvas to edit the frames inside.
++   */
++  makeLoopFromSelectedFrames = () => {
++    let Wick = window.Wick;
++    let timeline = this.project.activeTimeline;
++    let picked = this.project.selection.getSelectedObjects('Frame').filter(f => f.parentTimeline === timeline);
++    if (!picked.length) {
++      this.toast('First select the frames to loop: drag across them in the timeline.', 'info');
++      return;
++    }
++    let start = Math.min.apply(null, picked.map(f => f.start));
++    let end = Math.max.apply(null, picked.map(f => f.end));
++    if (end - start < 1) {
++      this.toast('Select at least 2 frames to make a loop.', 'info');
++      return;
++    }
++    let layers = timeline.layers.filter(l => picked.some(f => f.parentLayer === l));
++    // Every frame on those layers between start and end goes into the loop.
++    let frames = [];
++    for (let layer of layers) {
++      for (let f of layer.frames) {
++        if (f.end < start || f.start > end) continue;
++        if (f.start < start || f.end > end) {
++          this.toast('A frame on "' + layer.name + '" sticks out past the frames you picked. Select it too, or shorten it first.', 'error');
++          return;
++        }
++        frames.push(f);
++      }
++    }
++    if (frames.some(f => f.sound)) {
++      this.toast('Sounds stay on the main timeline, so frames with sounds can\'t go in a loop. Move the sound to another layer first.', 'error');
++      return;
++    }
++
++    let clip = new Wick.Clip();
++    let placeholder = clip.timeline.layers[0];
++    layers.forEach(layer => {
++      let inner = new Wick.Layer({ name: layer.name });
++      clip.timeline.addLayer(inner);
++      frames.filter(f => f.parentLayer === layer).forEach(f => {
++        let copy = f.copy();
++        copy.start = f.start - start + 1;
++        copy.end = f.end - start + 1;
++        inner.addFrame(copy);
++      });
++    });
++    clip.timeline.removeLayer(placeholder);
++    clip.timeline.activeLayerIndex = 0;
++    clip.timeline.playheadPosition = 1;
++    let n = 1;
++    let names = new Set(timeline.frames.reduce((all, f) => all.concat(f.clips.map(c => c.identifier)), []));
++    while (names.has('Loop' + n)) n++;
++    clip.identifier = 'Loop' + n;
++
++    this.project.selection.clear();
++    frames.forEach(f => f.remove());
++    let loopFrame = new Wick.Frame({ start: start, end: end });
++    layers[0].addFrame(loopFrame);
++    loopFrame.addClip(clip);
++    clip.animationType = 'loop';
++    clip.isSynced = true; // follows the main timeline, so scrubbing shows the loop too
++    this.project.selection.select(loopFrame);
++    this.projectDidChange({ actionName: 'Make Loop' });
++    this.toast('Made ' + clip.identifier + '. Make its frame longer to repeat it, or tap "Loop to end". Double-tap the drawing to edit the frames inside.', 'success');
++  }
++
++  /** Add one more full pass of the selected loop. */
++  repeatSelectedLoop = () => {
++    let frame = this.getSelectedLoopFrame();
++    if (!frame) return;
++    let times = this.getLoopInFrame(frame).timeline.length;
++    if (this.getFrameLengthMode() === 'push') {
++      for (let i = 0; i < times; i++) frame.extendAndPushOtherFrames();
++    } else {
++      frame.end += times;
++      this.project.activeTimeline.resolveFrameOverlap([frame]);
++    }
++    this.projectDidChange({ actionName: 'Repeat Loop' });
++  }
++
++  /** Stretch the selected loop to the end of the animation, so it plays the whole time. */
++  loopSelectedToEnd = () => {
++    let frame = this.getSelectedLoopFrame();
++    if (!frame) return;
++    let timeline = this.project.activeTimeline;
++    let last = 1;
++    timeline.layers.forEach(l => l.frames.forEach(f => { if (f !== frame) last = Math.max(last, f.end); }));
++    let next = frame.parentLayer.frames.filter(f => f !== frame && f.start > frame.end).sort((a, b) => a.start - b.start)[0];
++    let target = next ? Math.min(last, next.start - 1) : last;
++    if (target <= frame.end) {
++      this.toast(next ? 'Another drawing comes right after this loop on the same layer. Move it to make room.' : 'This loop already lasts until the end. Make it longer with + to keep it going.', 'info');
++      return;
++    }
++    frame.end = target;
++    if (next && target < last) this.toast('The loop stops at frame ' + target + ', right before the next drawing on this layer.', 'info');
++    this.projectDidChange({ actionName: 'Loop To End' });
++  }
++
+   extendFrame = () => {
+       var frames = this.project.selection.getSelectedObjects('Frame');
+       this.project.extendFrames(frames);
 diff --git a/src/Editor/EditorWrapper.jsx b/src/Editor/EditorWrapper.jsx
 index d19a6c0..8aac91a 100644
 --- a/src/Editor/EditorWrapper.jsx
@@ -5053,6 +5231,165 @@ index 907061f..379ac2f 100644
            <MenuBarButton
              text="save"
              action={this.props.exportProjectAsWickFile}
+diff --git a/src/Editor/Panels/MobileContainer/MobileContainer.jsx b/src/Editor/Panels/MobileContainer/MobileContainer.jsx
+index 19db41e..c63f0da 100644
+--- a/src/Editor/Panels/MobileContainer/MobileContainer.jsx
++++ b/src/Editor/Panels/MobileContainer/MobileContainer.jsx
+@@ -61,7 +61,8 @@ class MobileContainer extends Component {
+                     setFocusObject={props.setFocusObject}
+                     addTweenKeyframe={props.addTweenKeyframe}
+                     onRef={props.onRef}
+-                    dragSoundOntoTimeline={props.dragSoundOntoTimeline}>
++                    dragSoundOntoTimeline={props.dragSoundOntoTimeline}
++                    editor={props.editor}>
+                 </Timeline>
+             </Fragment>
+         )
+diff --git a/src/Editor/Panels/Timeline/Timeline.jsx b/src/Editor/Panels/Timeline/Timeline.jsx
+index 719cfcd..c9186fe 100644
+--- a/src/Editor/Panels/Timeline/Timeline.jsx
++++ b/src/Editor/Panels/Timeline/Timeline.jsx
+@@ -23,6 +23,7 @@ import { DropTarget } from 'react-dnd';
+ import DragDropTypes from 'Editor/DragDropTypes.js';
+ 
+ import './_timeline.scss';
++import TimelineTools from './TimelineTools/TimelineTools';
+ import 'bootstrap/dist/css/bootstrap.min.css';
+ 
+ import iconLock from 'resources/timeline-icons/locked.png';
+@@ -102,6 +103,7 @@ class Timeline extends Component {
+       <div id="animation-timeline-container" aria-label="Timeline">
+         { isOver && <div className="drag-drop-overlay" /> }
+         <div id="animation-timeline" ref={this.canvasContainer} />
++        <TimelineTools editor={this.props.editor} />
+       </div>
+     )
+   }
+diff --git a/src/Editor/Panels/Timeline/TimelineTools/TimelineTools.jsx b/src/Editor/Panels/Timeline/TimelineTools/TimelineTools.jsx
+new file mode 100644
+index 0000000..cbad9b6
+--- /dev/null
++++ b/src/Editor/Panels/Timeline/TimelineTools/TimelineTools.jsx
+@@ -0,0 +1,42 @@
++/*
++ * Buttons in the timeline's top row: make a drawing one frame longer or shorter,
++ * choose whether that pushes or overwrites the frames next to it, and turn
++ * frames into a loop.
++ *
++ * This file is part of a modified version of Wick Editor and is licensed
++ * under the GNU General Public License v3 or later.
++ */
++
++import React from 'react';
++import './_timelinetools.scss';
++
++export default function TimelineTools (props) {
++  let editor = props.editor;
++  if (!editor || !editor.changeFrameLength) return null;
++  let mode = editor.getFrameLengthMode();
++  let loopFrame = editor.getSelectedLoopFrame();
++  let stop = e => e.stopPropagation();
++  return (
++    <div className='timeline-tools' onPointerDown={stop} onMouseDown={stop} onTouchStart={stop}>
++      <div className='timeline-tools-group' role='group' aria-label='Frame length'>
++        <button className='tt-btn tt-icon' title='One frame shorter' aria-label='One frame shorter' onClick={() => editor.changeFrameLength(-1)}>−</button>
++        <span className='tt-label'>Length</span>
++        <button className='tt-btn tt-icon' title='One frame longer' aria-label='One frame longer' onClick={() => editor.changeFrameLength(1)}>+</button>
++      </div>
++      <div className='timeline-tools-group tt-seg' role='group' aria-label='When a frame changes length'>
++        <button className={'tt-btn' + (mode === 'push' ? ' tt-on' : '')} aria-pressed={mode === 'push'}
++          title='Longer frames push the next frames along. Shorter frames pull them back.' onClick={() => editor.setFrameLengthMode('push')}>Push</button>
++        <button className={'tt-btn' + (mode === 'overwrite' ? ' tt-on' : '')} aria-pressed={mode === 'overwrite'}
++          title='Longer frames cover the next frames. Shorter frames leave a gap.' onClick={() => editor.setFrameLengthMode('overwrite')}>Overwrite</button>
++      </div>
++      {loopFrame
++        ? <div className='timeline-tools-group' role='group' aria-label='Loop'>
++            <button className='tt-btn tt-loop' title='Play the loop one more time' onClick={editor.repeatSelectedLoop}>⟳ +1 loop</button>
++            <button className='tt-btn tt-loop' title='Keep looping until the end of the animation' onClick={editor.loopSelectedToEnd}>Loop to end</button>
++          </div>
++        : <div className='timeline-tools-group'>
++            <button className='tt-btn tt-loop' title='Put the selected frames in a loop' onClick={editor.makeLoopFromSelectedFrames}>⟳ Loop frames</button>
++          </div>}
++    </div>
++  );
++}
+diff --git a/src/Editor/Panels/Timeline/TimelineTools/_timelinetools.scss b/src/Editor/Panels/Timeline/TimelineTools/_timelinetools.scss
+new file mode 100644
+index 0000000..6939372
+--- /dev/null
++++ b/src/Editor/Panels/Timeline/TimelineTools/_timelinetools.scss
+@@ -0,0 +1,71 @@
++@import 'Editor/_wickbrand.scss';
++
++#animation-timeline-container { position: relative; }
++
++.timeline-tools {
++  position: absolute;
++  top: 2px;
++  right: 8px;
++  z-index: 3;
++  height: 26px;
++  display: flex;
++  align-items: center;
++  gap: 10px;
++  max-width: calc(100% - 200px);
++  overflow-x: auto;
++  scrollbar-width: none;
++  &::-webkit-scrollbar { display: none; }
++}
++
++.timeline-tools-group {
++  display: flex;
++  align-items: center;
++  gap: 4px;
++  flex: none;
++}
++
++.tt-btn {
++  height: 26px;
++  min-width: 26px;
++  padding: 0 9px;
++  border: none;
++  border-radius: 6px;
++  background: $editor-tertiary;
++  color: $editor-modal-text-white;
++  font-size: 13px;
++  font-weight: bold;
++  white-space: nowrap;
++  cursor: pointer;
++  touch-action: manipulation;
++  &:active { background: $editor-green-highlight-dark; color: $editor-primary; }
++  &:focus { outline: none; }
++  &:focus-visible { box-shadow: 0 0 0 2px $editor-green-highlight; }
++}
++
++.tt-icon {
++  font-size: 18px;
++  line-height: 26px;
++  padding: 0;
++  width: 30px;
++}
++
++.tt-label {
++  font-size: 12px;
++  color: $editor-secondary-text;
++  padding: 0 2px;
++}
++
++.tt-seg {
++  gap: 0;
++  .tt-btn { border-radius: 0; }
++  .tt-btn:first-child { border-radius: 6px 0 0 6px; }
++  .tt-btn:last-child { border-radius: 0 6px 6px 0; }
++}
++
++.tt-on { background: $editor-green-highlight; color: $editor-primary; }
++.tt-loop { background: #3c3a4f; }
++
++@media (max-width: 760px) {
++  .tt-label { display: none; }
++  .timeline-tools { gap: 6px; }
++}
 diff --git a/src/Editor/Panels/Toolbox/ArtLayerSwitch/ArtLayerSwitch.jsx b/src/Editor/Panels/Toolbox/ArtLayerSwitch/ArtLayerSwitch.jsx
 new file mode 100644
 index 0000000..a80b282
