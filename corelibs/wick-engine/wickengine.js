@@ -64834,6 +64834,21 @@ Wick.GUIElement.ActionButtonsContainer = class extends Wick.GUIElement {
         this.model.project.createTween();
         this.projectWasModified();
       }
+    }); // Added for the editor: show guide layers while playing (on/off), and push/overwrite for frame length.
+
+    var hooks = () => Wick.GUIElement.editorHooks;
+    this.guidesButton = new Wick.GUIElement.ActionButton(this.model, {
+      tooltip: 'Guides while playing',
+      icon: 'guides_off',
+      clickFn: () => { if (hooks()) hooks().toggleGuides(); this.projectWasSoftModified(); }
+    });
+    this.pushButton = new Wick.GUIElement.ActionButton(this.model, {
+      tooltip: 'Push', icon: 'mode_push_off', height: 8, width: 14,
+      clickFn: () => { if (hooks()) hooks().setFrameMode('push'); this.projectWasSoftModified(); }
+    });
+    this.overwriteButton = new Wick.GUIElement.ActionButton(this.model, {
+      tooltip: 'Overwrite', icon: 'mode_overwrite_off', height: 8, width: 14,
+      clickFn: () => { if (hooks()) hooks().setFrameMode('overwrite'); this.projectWasSoftModified(); }
     }); // Only draw action buttons on bottom if we're not on mobile.
 
     if (!Wick.GUIElement.IS_MOBILE) {
@@ -64864,6 +64879,24 @@ Wick.GUIElement.ActionButtonsContainer = class extends Wick.GUIElement {
         }
       });
     }
+  }
+
+  /* A button that's green when on. */
+  _drawToggle(button, icon, on, x, y) {
+    var ctx = this.ctx;
+    ctx.save();
+    ctx.translate(x, y);
+
+    if (on) {
+      ctx.fillStyle = '#1EE29A';
+      ctx.beginPath();
+      ctx.roundRect(-button.width, -button.height, button.width * 2, button.height * 2, 3);
+      ctx.fill();
+    }
+
+    button.icon = icon + (on ? '_on' : '_off');
+    button.draw(true);
+    ctx.restore();
   }
 
   draw() {
@@ -64897,14 +64930,21 @@ Wick.GUIElement.ActionButtonsContainer = class extends Wick.GUIElement {
       ctx.save();
       ctx.translate(54, this.canvas.height - Wick.GUIElement.NUMBER_LINE_HEIGHT - 4);
       this.gridSizeButton.draw(true);
-      ctx.restore();
+      ctx.restore(); // Push / Overwrite (what a longer frame does to the frames after it)
+
+      if (Wick.GUIElement.editorHooks) {
+        var mode = Wick.GUIElement.editorHooks.getFrameMode();
+        var y = this.canvas.height - Wick.GUIElement.NUMBER_LINE_HEIGHT - 4;
+        this._drawToggle(this.pushButton, 'mode_push', mode === 'push', 94, y);
+        this._drawToggle(this.overwriteButton, 'mode_overwrite', mode === 'overwrite', 124, y);
+      }
     }
 
     var tweenButtonIsActive = this.model.project.canCreateTween;
     var deleteButtonIsActive = this.model.project.selection.getSelectedObjects('Timeline').length > 0;
     ctx.save();
     ctx.save();
-    var widthOfActionButtonContainer = 90;
+    var widthOfActionButtonContainer = Wick.GUIElement.editorHooks ? 120 : 90;
     var bump = 10;
     var leftOfContainer = Wick.GUIElement.LAYERS_CONTAINER_WIDTH + bump - widthOfActionButtonContainer;
     ctx.translate(leftOfContainer, 0); // Delete Frame button
@@ -64926,7 +64966,12 @@ Wick.GUIElement.ActionButtonsContainer = class extends Wick.GUIElement {
     ctx.globalAlpha = tweenButtonIsActive ? 1.0 : 0.3;
     ctx.translate(60, 20);
     this.addTweenButton.draw(tweenButtonIsActive);
-    ctx.restore();
+    ctx.restore(); // Guides while playing, right of Add Tween (green when on)
+
+    if (Wick.GUIElement.editorHooks) {
+      this._drawToggle(this.guidesButton, 'guides', Wick.GUIElement.editorHooks.getGuides(), 90, 20);
+    }
+
     ctx.restore();
     ctx.restore();
   }
