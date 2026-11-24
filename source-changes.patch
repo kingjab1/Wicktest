@@ -2980,10 +2980,10 @@ index b3f225d..a6f82a1 100644
            builtinPreviews={this.props.builtinPreviews}
 diff --git a/src/Editor/Modals/MyWork/MyWork.jsx b/src/Editor/Modals/MyWork/MyWork.jsx
 new file mode 100644
-index 0000000..8812332
+index 0000000..d0d3df6
 --- /dev/null
 +++ b/src/Editor/Modals/MyWork/MyWork.jsx
-@@ -0,0 +1,693 @@
+@@ -0,0 +1,761 @@
 +/*
 + * My Work: student logins (class + picture + PIN), online saves, and teacher
 + * mode (classes, login cards, Learn publishing, Class Sounds).
@@ -3027,7 +3027,7 @@ index 0000000..8812332
 +      busy: false,
 +      error: null,
 +      // signing in
-+      step: 'class', classes: null, classId: null, label: null, pin: '',
++      step: 'class', cls: null, codeInput: '', label: null, pin: '', titleTaps: 0,
 +      email: '', password: '', newTeacherUid: null,
 +      // signed in
 +      tab: 'work', projects: null, saveTitle: '', confirmDelete: null,
@@ -3054,6 +3054,7 @@ index 0000000..8812332
 +  componentDidUpdate (prevProps) {
 +    if (this.props.open && !prevProps.open) {
 +      this.setState({ error: null, confirmDelete: null, saveTitle: this.props.getProjectName ? this.props.getProjectName() : '' });
++      if (/^#dev(eloper)?$/i.test(window.location.hash || '') && !this.state.user) this.setState({ step: 'developer' });
 +      this.refresh();
 +    }
 +    if (!this.props.open && prevProps.open) this.stopSound();
@@ -3072,14 +3073,11 @@ index 0000000..8812332
 +  refresh = () => {
 +    let user = this.state.user;
 +    if (!this.state.enabled) return;
-+    if (!user) {
-+      if (!this.state.classes) cloud.listClasses().then(c => this.setState({ classes: c })).catch(e => this.setState({ error: cloud.message(e) }));
-+      return;
-+    }
++    if (!user) return;
 +    if (user.role === 'student' || user.role === 'teacher') this.loadProjects();
 +    if (user.role === 'teacher') {
 +      this.loadTeacherClasses();
-+      if (this.state.tab === 'learn') this.loadLearn();
++      if (this.state.tab === 'learn' && user.admin) this.loadLearn();
 +      if (this.state.tab === 'sounds') this.loadSounds();
 +    }
 +  }
@@ -3095,7 +3093,50 @@ index 0000000..8812332
 +
 +  /* ---------- sign in ---------- */
 +
-+  pickClass = (cls) => this.setState({ classId: cls.id, step: 'pick', error: null });
++  /** Class codes this iPad has used, newest first, so students only type theirs once. */
++  recentClasses () {
++    try { return JSON.parse(window.localStorage.getItem('recentClasses') || '[]').slice(0, 4); } catch (e) { return []; }
++  }
++
++  rememberClass (cls) {
++    try {
++      let list = this.recentClasses().filter(c => c.code !== cls.id);
++      list.unshift({ code: cls.id, name: cls.name });
++      window.localStorage.setItem('recentClasses', JSON.stringify(list.slice(0, 4)));
++    } catch (e) { /* private browsing */ }
++  }
++
++  forgetClass = (code) => {
++    try {
++      window.localStorage.setItem('recentClasses', JSON.stringify(this.recentClasses().filter(c => c.code !== code)));
++    } catch (e) {}
++    this.forceUpdate();
++  }
++
++  openClass = (code) => {
++    this.run(() => cloud.getClassByCode(code)).then(cls => {
++      if (!cls) { this.setState({ error: cloud.message({ code: 'no-class' }) }); return; }
++      this.rememberClass(cls);
++      this.setState({ cls: cls, step: 'pick', codeInput: '', error: null });
++    }).catch(() => {});
++  }
++
++  submitCode = (e) => {
++    e.preventDefault();
++    if (cloud.normalizeCode(this.state.codeInput)) this.openClass(this.state.codeInput);
++  }
++
++  /** Tapping the title 5 times opens the developer sign-in. */
++  tapTitle = () => {
++    let now = Date.now();
++    let taps = now - (this.lastTitleTap || 0) < 1500 ? this.state.titleTaps + 1 : 1;
++    this.lastTitleTap = now;
++    if (taps >= 5 && !this.state.user) {
++      this.setState({ titleTaps: 0, step: 'developer', error: null });
++    } else {
++      this.setState({ titleTaps: taps });
++    }
++  }
 +  pickLabel = (label) => this.setState({ label: label, step: 'pin', pin: '', error: null });
 +
 +  pressKey = (k) => {
@@ -3104,7 +3145,7 @@ index 0000000..8812332
 +    let pin = (this.state.pin + k).slice(0, 4);
 +    this.setState({ pin: pin, error: null });
 +    if (pin.length === 4) {
-+      this.run(() => cloud.studentSignIn(this.state.classId, this.state.label, pin))
++      this.run(() => cloud.studentSignIn(this.state.cls.id, this.state.label, pin))
 +        .then(() => this.setState({ step: 'class', pin: '', tab: 'work' }))
 +        .catch(() => this.setState({ pin: '' }));
 +    }
@@ -3112,21 +3153,22 @@ index 0000000..8812332
 +
 +  teacherSignIn = (e) => {
 +    e.preventDefault();
++    let developer = this.state.step === 'developer';
 +    this.run(() => cloud.teacherSignIn(this.state.email.trim(), this.state.password))
-+      .then(() => this.setState({ password: '', step: 'class', tab: 'work' })).catch(() => {});
++      .then(() => this.setState({ password: '', step: 'class', tab: 'work', devCheck: developer })).catch(() => {});
 +  }
 +
 +  teacherCreate = (e) => {
 +    e.preventDefault();
-+    this.run(() => cloud.teacherCreateAccount(this.state.email.trim(), this.state.password))
-+      .then(uid => this.setState({ password: '', newTeacherUid: uid })).catch(() => {});
++    this.run(() => cloud.teacherCreateAccount(this.state.email.trim(), this.state.password), 'Your teacher account is ready.')
++      .then(() => this.setState({ password: '', step: 'class', tab: 'classes' }, this.refresh)).catch(() => {});
 +  }
 +
 +  signOut = () => {
 +    this.run(() => cloud.signOut()).then(() => {
 +      cloud.setOpenProject(null, null);
-+      this.setState({ step: 'class', classId: null, label: null, projects: null, teacherClasses: null,
-+        selectedClass: null, classProjects: null, tab: 'work', classes: null }, this.refresh);
++      this.setState({ step: 'class', cls: null, label: null, projects: null, teacherClasses: null,
++        selectedClass: null, classProjects: null, tab: 'work' }, this.refresh);
 +    }).catch(() => {});
 +  }
 +
@@ -3229,7 +3271,7 @@ index 0000000..8812332
 +      let p = cloud.pictureFor(s.label);
 +      return '<div class="card"><div class="pic" style="background:' + p.color + '">' + p.emoji + '</div>' +
 +        '<div class="name">' + esc(s.label) + '</div><div class="pin">PIN <b>' + esc(this.state.pins[s.label] || '????') + '</b></div>' +
-+        '<div class="cls">' + esc(cls.name) + '</div><div class="site">' + esc(site) + '</div></div>';
++        '<div class="cls">' + esc(cls.name) + '</div><div class="code">Class code <b>' + esc(cls.id) + '</b></div><div class="site">' + esc(site) + '</div></div>';
 +    }).join('');
 +    let w = window.open('', '_blank');
 +    if (!w) { this.props.toast('Allow pop-ups for this site to print the cards.', 'error'); return; }
@@ -3239,7 +3281,7 @@ index 0000000..8812332
 +      '.card{border:2px dashed #999;border-radius:14px;padding:14px;text-align:center;break-inside:avoid}' +
 +      '.pic{width:90px;height:90px;border-radius:50%;margin:0 auto 6px;font-size:58px;line-height:90px}' +
 +      '.name{font-size:22px;font-weight:bold}.pin{font-size:20px;margin:4px 0}.pin b{letter-spacing:4px;font-size:26px}' +
-+      '.cls{font-size:13px;color:#555}.site{font-size:11px;color:#777;margin-top:4px}' +
++      '.cls{font-size:13px;color:#555}.code{font-size:15px;margin-top:4px}.code b{letter-spacing:2px;font-size:18px}.site{font-size:11px;color:#777;margin-top:4px}' +
 +      '@media print{button{display:none}}</style></head><body>' +
 +      '<button onclick="window.print()" style="font-size:18px;padding:8px 18px;margin-bottom:12px">Print</button>' +
 +      '<div class="grid">' + cards + '</div></body></html>');
@@ -3353,9 +3395,8 @@ index 0000000..8812332
 +  /* ---------- render: signed out ---------- */
 +
 +  renderSignIn () {
-+    let { step, classes, classId, label, pin, busy } = this.state;
-+    if (step === 'teacher' || step === 'teacher-create') return this.renderTeacherSignIn();
-+    let cls = (classes || []).find(c => c.id === classId);
++    let { step, cls, label, pin, busy, codeInput } = this.state;
++    if (step === 'teacher' || step === 'teacher-create' || step === 'developer') return this.renderTeacherSignIn();
 +
 +    if (step === 'pin' && cls) {
 +      return (
@@ -3378,8 +3419,9 @@ index 0000000..8812332
 +    if (step === 'pick' && cls) {
 +      return (
 +        <div className='mywork-scroll'>
-+          <button className='mywork-back' onClick={() => this.setState({ step: 'class' })}>‹ Classes</button>
++          <button className='mywork-back' onClick={() => this.setState({ step: 'class', cls: null })}>‹ Class code</button>
 +          <div className='mywork-heading'>{cls.name}: tap your picture</div>
++          {!(cls.students || []).length && <div className='mywork-empty'>This class doesn't have any students yet.</div>}
 +          <div className='mywork-pic-grid'>
 +            {(cls.students || []).map(s =>
 +              <button key={s.label} className='mywork-pic-button' onClick={() => this.pickLabel(s.label)}>
@@ -3391,27 +3433,44 @@ index 0000000..8812332
 +      );
 +    }
 +
++    let recent = this.recentClasses();
 +    return (
 +      <div className='mywork-scroll'>
-+        <div className='mywork-heading'>Pick your class</div>
-+        {!classes && <div className='mywork-empty'>Loading...</div>}
-+        {classes && classes.length === 0 && <div className='mywork-empty'>No classes yet. Your teacher will set them up.</div>}
-+        <div className='mywork-class-list'>
-+          {(classes || []).map(c => <button key={c.id} className='mywork-class-button' onClick={() => this.pickClass(c)}>{c.name}</button>)}
-+        </div>
++        <div className='mywork-heading'>Type your class code</div>
++        <form className='mywork-code-form' onSubmit={this.submitCode}>
++          <input className='mywork-input mywork-code-input' value={codeInput} maxLength={12} placeholder='TIGER42'
++            autoCapitalize='characters' autoCorrect='off' autoComplete='off' spellCheck='false' aria-label='Class code'
++            onChange={e => this.setState({ codeInput: e.target.value.toUpperCase(), error: null })} />
++          <button className='mywork-primary' type='submit' disabled={busy || !cloud.normalizeCode(codeInput)}>Go</button>
++        </form>
++        <div className='mywork-hint'>It's on your login card.</div>
++        {recent.length > 0 &&
++          <React.Fragment>
++            <div className='mywork-heading mywork-subheading'>Used on this iPad</div>
++            <div className='mywork-class-list'>
++              {recent.map(c =>
++                <div key={c.code} className='mywork-recent'>
++                  <button className='mywork-class-button' disabled={busy} onClick={() => this.openClass(c.code)}>
++                    {c.name}<span className='mywork-recent-code'>{c.code}</span>
++                  </button>
++                  <button className='mywork-small' aria-label={'Forget ' + c.name} title='Remove from this iPad' onClick={() => this.forgetClass(c.code)}>✕</button>
++                </div>)}
++            </div>
++          </React.Fragment>}
 +        <button className='mywork-link mywork-teacher-link' onClick={() => this.setState({ step: 'teacher', error: null })}>I'm a teacher</button>
 +      </div>
 +    );
 +  }
 +
 +  renderTeacherSignIn () {
-+    let { step, email, password, busy, newTeacherUid } = this.state;
-+    if (newTeacherUid) return this.renderTeacherPending(newTeacherUid);
++    let { step, email, password, busy } = this.state;
 +    let creating = step === 'teacher-create';
++    let developer = step === 'developer';
 +    return (
 +      <div className='mywork-scroll'>
 +        <button className='mywork-back' onClick={() => this.setState({ step: 'class', error: null })}>‹ Student sign in</button>
-+        <div className='mywork-heading'>{creating ? 'Make a teacher account' : 'Teacher sign in'}</div>
++        <div className='mywork-heading'>{developer ? 'Developer sign in' : creating ? 'Make a teacher account' : 'Teacher sign in'}</div>
++        {creating && <p className='mywork-hint'>Free for teachers. You'll make classes, print login cards for your students, and see their saved work.</p>}
 +        <form className='mywork-form' onSubmit={creating ? this.teacherCreate : this.teacherSignIn}>
 +          <input className='mywork-input' type='email' autoComplete='username' placeholder='Email' value={email}
 +            onChange={e => this.setState({ email: e.target.value })} />
@@ -3419,21 +3478,21 @@ index 0000000..8812332
 +            value={password} onChange={e => this.setState({ password: e.target.value })} />
 +          <button className='mywork-primary' type='submit' disabled={busy}>{creating ? 'Make account' : 'Sign in'}</button>
 +        </form>
-+        <button className='mywork-link' onClick={() => this.setState({ step: creating ? 'teacher' : 'teacher-create', error: null })}>
-+          {creating ? 'I already have an account' : 'First time? Make a teacher account'}
-+        </button>
++        {!developer &&
++          <button className='mywork-link' onClick={() => this.setState({ step: creating ? 'teacher' : 'teacher-create', error: null })}>
++            {creating ? 'I already have an account' : 'First time? Make a teacher account'}
++          </button>}
 +      </div>
 +    );
 +  }
 +
-+  renderTeacherPending (uid) {
++  renderAccountProblem (uid) {
 +    return (
 +      <div className='mywork-scroll'>
-+        <div className='mywork-heading'>One more step</div>
-+        <p>This account isn't a teacher yet. In the Firebase console, open Firestore Database, make a collection called <b>teachers</b>, and add a document whose ID is:</p>
++        <div className='mywork-heading'>This account can't be used here</div>
++        <p>It isn't a teacher or student account. Sign out and try again, or ask the person who runs this site. Account ID:</p>
 +        <div className='mywork-code'>{uid}</div>
-+        <p>Leave the document empty (or add any field). Then come back here and sign in again.</p>
-+        <button className='mywork-secondary' onClick={() => { this.setState({ newTeacherUid: null }); this.signOut(); }}>Done</button>
++        <button className='mywork-secondary' onClick={this.signOut}>Sign out</button>
 +      </div>
 +    );
 +  }
@@ -3508,6 +3567,7 @@ index 0000000..8812332
 +                <div className='mywork-heading'>{cls.name}</div>
 +                <button className='mywork-secondary' onClick={this.printCards} disabled={!(cls.students || []).length}>Print login cards</button>
 +              </div>
++              <div className='mywork-class-code'>Class code <b>{cls.id}</b><span>Students type this to find the class.</span></div>
 +              <div className='mywork-row'>
 +                <span>Add</span>
 +                <input className='mywork-input mywork-number' type='number' min='1' max='40' value={addCount}
@@ -3598,7 +3658,7 @@ index 0000000..8812332
 +    let { sounds, soundName, busy, playing, confirmDelete } = this.state;
 +    return (
 +      <div className='mywork-scroll'>
-+        <div className='mywork-hint'>Sounds here show up as "Class Sounds" in the sound library, only for students signed into your classes.</div>
++        <div className='mywork-hint'>Sounds here show up as "Class Sounds" in the sound library, only for students in your classes.</div>
 +        <div className='mywork-row'>
 +          <input className='mywork-input' placeholder='Name (optional)' value={soundName} maxLength={50}
 +            onChange={e => this.setState({ soundName: e.target.value })} />
@@ -3630,24 +3690,32 @@ index 0000000..8812332
 +  }
 +
 +  renderSignedIn () {
-+    let { user, tab } = this.state;
-+    if (user.role === 'none') return this.renderTeacherPending(user.uid);
++    let { user, tab, devCheck } = this.state;
++    if (user.role === 'none') return this.renderAccountProblem(user.uid);
 +    let teacher = user.role === 'teacher';
++    let admin = teacher && user.admin;
++    if (tab === 'learn' && !admin) tab = 'work';
 +    let tabButton = (id, label) =>
 +      <button key={id} className={'mywork-tab' + (tab === id ? ' mywork-tab-active' : '')} onClick={() => this.setTab(id)}>{label}</button>;
 +    return (
 +      <React.Fragment>
++        {devCheck && teacher && !admin &&
++          <div className='mywork-error'>
++            This account isn't a developer account yet. In the Firebase console, add a collection called <b>admins</b> with a
++            document whose ID is <span className='mywork-inline-code'>{user.uid}</span> (any one field), then sign in again.
++            <button className='mywork-small' style={{ marginLeft: 8 }} onClick={() => this.setState({ devCheck: false })}>OK</button>
++          </div>}
 +        <div className='mywork-userbar'>
-+          {teacher ? <span className='mywork-teacher-badge'>Teacher</span> : <Picture label={user.label} size={36} />}
++          {teacher ? <span className={'mywork-teacher-badge' + (admin ? ' mywork-dev-badge' : '')}>{admin ? 'Developer' : 'Teacher'}</span> : <Picture label={user.label} size={36} />}
 +          <span className='mywork-username'>{teacher ? user.email : user.label}</span>
 +          {teacher && <div className='mywork-tabs'>
-+            {tabButton('work', 'My Work')}{tabButton('classes', 'Classes')}{tabButton('learn', 'Learn')}{tabButton('sounds', 'Class Sounds')}
++            {tabButton('work', 'My Work')}{tabButton('classes', 'Classes')}{tabButton('sounds', 'Class Sounds')}{admin && tabButton('learn', 'Learn (everyone)')}
 +          </div>}
 +          <button className='mywork-link mywork-signout' onClick={this.signOut}>Sign out</button>
 +        </div>
 +        {(!teacher || tab === 'work') && this.renderWork()}
 +        {teacher && tab === 'classes' && this.renderClasses()}
-+        {teacher && tab === 'learn' && this.renderLearn()}
++        {admin && tab === 'learn' && this.renderLearn()}
 +        {teacher && tab === 'sounds' && this.renderSounds()}
 +      </React.Fragment>
 +    );
@@ -3667,7 +3735,7 @@ index 0000000..8812332
 +        className='modal-body mywork-modal-body'
 +        overlayClassName='modal-overlay mywork-modal-overlay'>
 +        <div className='mywork'>
-+          <div className='mywork-title'>My Work</div>
++          <div className='mywork-title' onClick={this.tapTitle}>My Work</div>
 +          {this.state.error && <div className='mywork-error'>{this.state.error}</div>}
 +          {this.renderBody()}
 +        </div>
@@ -3679,10 +3747,10 @@ index 0000000..8812332
 +export default MyWork;
 diff --git a/src/Editor/Modals/MyWork/_mywork.scss b/src/Editor/Modals/MyWork/_mywork.scss
 new file mode 100644
-index 0000000..68d3f9c
+index 0000000..2830051
 --- /dev/null
 +++ b/src/Editor/Modals/MyWork/_mywork.scss
-@@ -0,0 +1,363 @@
+@@ -0,0 +1,392 @@
 +@import 'Editor/_wickbrand.scss';
 +
 +.mywork-modal-body {
@@ -4046,6 +4114,35 @@ index 0000000..68d3f9c
 +  .mywork-split { flex-direction: column; }
 +  .mywork-side { width: 100%; max-height: 160px; }
 +}
++
++/* class codes */
++.mywork-title { user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
++.mywork-code-form { display: flex; gap: 8px; max-width: 420px; }
++.mywork-code-input {
++  flex: 1;
++  font-size: 26px;
++  font-weight: bold;
++  letter-spacing: 4px;
++  text-transform: uppercase;
++  padding: 10px 14px;
++}
++.mywork-recent { display: flex; gap: 6px; align-items: center; }
++.mywork-recent .mywork-class-button { flex: 1; display: flex; justify-content: space-between; align-items: center; }
++.mywork-recent-code { font-size: 14px; letter-spacing: 2px; opacity: 0.6; }
++.mywork-class-code {
++  background: $editor-modal-dark;
++  border-radius: 8px;
++  padding: 8px 12px;
++  margin-bottom: 10px;
++  display: flex;
++  align-items: baseline;
++  flex-wrap: wrap;
++  gap: 4px 10px;
++  b { font-size: 22px; letter-spacing: 3px; color: $editor-green-highlight; }
++  span { font-size: 13px; }
++}
++.mywork-dev-badge { background: #b197fc; }
++.mywork-inline-code { font-family: monospace; user-select: all; -webkit-user-select: all; }
 diff --git a/src/Editor/Modals/SoundLibrary/SoundLibrary.jsx b/src/Editor/Modals/SoundLibrary/SoundLibrary.jsx
 new file mode 100644
 index 0000000..1ec5b02
@@ -5002,7 +5099,7 @@ index 0000000..058ce7d
 +}
 diff --git a/src/Editor/Panels/Timeline/TimelineTools/_timelinetools.scss b/src/Editor/Panels/Timeline/TimelineTools/_timelinetools.scss
 new file mode 100644
-index 0000000..e5039d4
+index 0000000..da1291d
 --- /dev/null
 +++ b/src/Editor/Panels/Timeline/TimelineTools/_timelinetools.scss
 @@ -0,0 +1,83 @@
@@ -5014,7 +5111,7 @@ index 0000000..e5039d4
 +  position: absolute;
 +  top: 2px;
 +  right: 8px;
-+  z-index: 3;
++  z-index: 2;
 +  height: 26px;
 +  display: flex;
 +  align-items: center;
@@ -5112,12 +5209,24 @@ index 6c1b02e..f440557 100644
        className={classNames("wick-button ", props.className)}>
        {props.children}
      </button>
+diff --git a/src/Editor/_wickbrand.scss b/src/Editor/_wickbrand.scss
+index f156841..8a781f0 100644
+--- a/src/Editor/_wickbrand.scss
++++ b/src/Editor/_wickbrand.scss
+@@ -241,6 +241,7 @@ a:hover {
+   right: 0;
+   bottom: 0;
+   background-color: rgba(0,0,0,0.6);
++  z-index: 1000; // above the timeline strip and other panels
+ }
+ 
+ .mobile-menu-overlay {
 diff --git a/src/cloud/cloud.js b/src/cloud/cloud.js
 new file mode 100644
-index 0000000..9785ff0
+index 0000000..c6ee347
 --- /dev/null
 +++ b/src/cloud/cloud.js
-@@ -0,0 +1,425 @@
+@@ -0,0 +1,479 @@
 +/*
 + * Cloud saves, student logins and Learn publishing, backed by Firebase
 + * (Authentication + Cloud Firestore, both on the free Spark plan).
@@ -5126,16 +5235,23 @@ index 0000000..9785ff0
 + * Firebase's browser SDK is self-hosted in /corelibs/firebase so the only
 + * outside addresses are Google's API hosts.
 + *
++ * Who's who:
++ *   Developer: an account listed in admins/{uid} (added by hand in the Firebase console). Can publish to
++ *              the Learn tab, which everyone sees, and can see everything.
++ *   Teacher:   anyone can sign up. Each teacher only sees their own classes, students, student work and sounds.
++ *   Student:   made by a teacher. Signs in with the class code, their picture and a 4-digit PIN.
++ *
 + * Data layout (see firestore.rules in the site repo):
-+ *   teachers/{uid}            exists = this account is a teacher (added by hand in the Firebase console)
-+ *   classes/{classId}         { name, students: [{ label, email }] }   readable by anyone (no names, just "Blue Fox")
-+ *   classSecrets/{classId}    { pins: { label: pin } }                  teacher only, so cards can be reprinted
-+ *   students/{uid}            { classId, label }
-+ *   projects/{id}             { owner, classId, label, title, thumb, version, chunkCount, size, updatedAt }
++ *   admins/{uid}              exists = developer (added by hand)
++ *   teachers/{uid}            { email, createdAt }   made when a teacher signs up
++ *   classes/{CODE}            { name, code, teacher, students: [{ label, email, uid }] }   anyone can read one class by its code
++ *   classSecrets/{CODE}       { teacher, pins: { label: pin } }   the class's teacher only, so cards can be reprinted
++ *   students/{uid}            { classId, label, teacher }
++ *   projects/{id}             { owner, teacher, classId, label, title, thumb, version, chunkCount, size, updatedAt }
 + *   projects/{id}/chunks/{v_i}{ data }   the .wick file as base64, split to fit Firestore's 1 MB document limit
 + *   learn/{id}                { title, description, principles, tags, preview, version, chunkCount, order, updatedAt }
 + *   learn/{id}/chunks/{v_i}   { data }
-+ *   classSounds/{id}          { name, seconds, type, version, chunkCount }   signed-in users read, teacher writes
++ *   classSounds/{id}          { teacher, name, seconds, type, version, chunkCount }   the teacher and their students
 + *   classSounds/{id}/chunks/{v_i} { data }
 + *
 + * This file is part of a modified version of Wick Editor and is licensed
@@ -5220,17 +5336,36 @@ index 0000000..9785ff0
 +
 +function B () { return window.__cloudBackendOverride; }
 +
++function isStudentEmail (email) { return /@student\.animate\.invalid$/i.test(email || ''); }
++
 +function describeUser (user) {
 +  if (!user) return Promise.resolve(null);
 +  return Promise.all([
++    db.collection('admins').doc(user.uid).get().catch(() => null),
 +    db.collection('teachers').doc(user.uid).get().catch(() => null),
 +    db.collection('students').doc(user.uid).get().catch(() => null),
-+  ]).then(([t, s]) => {
-+    if (t && t.exists) return { uid: user.uid, role: 'teacher', email: user.email, label: 'Teacher' };
++  ]).then(([a, t, s]) => {
 +    if (s && s.exists) return Object.assign({ uid: user.uid, role: 'student' }, s.data());
-+    return { uid: user.uid, role: 'none', email: user.email };
++    let admin = !!(a && a.exists);
++    let teacher = { uid: user.uid, role: 'teacher', admin: admin, email: user.email, label: admin ? 'Developer' : 'Teacher' };
++    if (t && t.exists) return teacher;
++    if (isStudentEmail(user.email)) return { uid: user.uid, role: 'none', email: user.email };
++    // Anyone who signs up with their own email is a teacher.
++    return db.collection('teachers').doc(user.uid).set({ email: user.email || '', createdAt: window.firebase.firestore.FieldValue.serverTimestamp() })
++      .then(() => teacher)
++      .catch(e => { console.error('teacher setup', e); return { uid: user.uid, role: 'none', email: user.email }; });
 +  });
 +}
++
++// Class codes: an easy word and two digits, like TIGER42. No look-alike letters to mix up.
++const CODE_WORDS = ['TIGER', 'MANGO', 'ROBOT', 'COMET', 'PANDA', 'MAPLE', 'OTTER', 'RIVER', 'PIXEL', 'LEMON', 'CLOUD', 'STORM',
++  'HONEY', 'SPARK', 'OCEAN', 'BERRY', 'NINJA', 'ZEBRA', 'TULIP', 'CANDY', 'GECKO', 'LUNAR', 'MOOSE', 'PEACH', 'RHINO', 'SUNNY',
++  'TRAIN', 'WAFFLE', 'COCOA', 'DISCO', 'FLAME', 'GRAPE', 'KOALA', 'LLAMA', 'MELON', 'PLANET', 'ROCKET', 'SHARK', 'TACO', 'YETI'];
++function randomCode () {
++  let b = new Uint32Array(2); window.crypto.getRandomValues(b);
++  return CODE_WORDS[b[0] % CODE_WORDS.length] + String(10 + (b[1] % 90));
++}
++function normalizeCode (code) { return String(code || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); }
 +
 +/* ---------- helpers ---------- */
 +
@@ -5332,16 +5467,30 @@ index 0000000..9785ff0
 +
 +  /* ----- sign in / out ----- */
 +
++  /** The signed-in teacher's own classes. */
 +  async listClasses () {
 +    if (B()) return B().listClasses();
-+    let snap = await db.collection('classes').orderBy('name').get();
-+    return snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
++    let snap = await db.collection('classes').where('teacher', '==', currentUser.uid).get();
++    return snap.docs.map(d => Object.assign({ id: d.id }, d.data())).sort((a, b) => String(a.name).localeCompare(String(b.name)));
 +  },
 +
++  /** Looks up one class by its code (for students signing in). Returns null if there's no such class. */
++  async getClassByCode (code) {
++    code = normalizeCode(code);
++    if (!code) return null;
++    if (B()) return B().getClassByCode(code);
++    let snap = await db.collection('classes').doc(code).get();
++    return snap.exists ? Object.assign({ id: snap.id }, snap.data()) : null;
++  },
++
++  normalizeCode,
++
 +  async studentSignIn (classId, label, pin) {
++    classId = normalizeCode(classId);
 +    if (B()) return B().studentSignIn(classId, label, pin);
 +    let cls = await db.collection('classes').doc(classId).get();
-+    let entry = cls.exists && (cls.data().students || []).find(s => s.label === label);
++    if (!cls.exists) throw new Error('no-class');
++    let entry = (cls.data().students || []).find(s => s.label === label);
 +    if (!entry) throw new Error('not-found');
 +    await auth.signInWithEmailAndPassword(entry.email, passwordFor(label, pin));
 +  },
@@ -5351,10 +5500,11 @@ index 0000000..9785ff0
 +    await auth.signInWithEmailAndPassword(email, password);
 +  },
 +
-+  /** First-time setup. Returns the new account's uid, which goes into teachers/{uid} in the Firebase console. */
++  /** Makes a teacher account. Returns the new account's uid. */
 +  async teacherCreateAccount (email, password) {
 +    if (B()) return B().teacherCreateAccount(email, password);
 +    let cred = await auth.createUserWithEmailAndPassword(email, password);
++    await db.collection('teachers').doc(cred.user.uid).set({ email: email, createdAt: window.firebase.firestore.FieldValue.serverTimestamp() });
 +    return cred.user.uid;
 +  },
 +
@@ -5362,12 +5512,19 @@ index 0000000..9785ff0
 +
 +  /* ----- classes (teacher) ----- */
 +
++  /** Makes a class with a new class code. Returns the code. */
 +  async createClass (name) {
 +    if (B()) return B().createClass(name);
-+    let ref = db.collection('classes').doc(slug(name).slice(0, 20) + '-' + randomId(4));
-+    await ref.set({ name: name, students: [], createdAt: window.firebase.firestore.FieldValue.serverTimestamp() });
-+    await db.collection('classSecrets').doc(ref.id).set({ pins: {} });
-+    return ref.id;
++    let code = null;
++    for (let tries = 0; tries < 20 && !code; tries++) {
++      let c = randomCode();
++      if (!(await db.collection('classes').doc(c).get()).exists) code = c;
++    }
++    if (!code) throw new Error('no-code');
++    await db.collection('classes').doc(code).set({ name: name, code: code, teacher: currentUser.uid, students: [],
++      createdAt: window.firebase.firestore.FieldValue.serverTimestamp() });
++    await db.collection('classSecrets').doc(code).set({ teacher: currentUser.uid, pins: {} });
++    return code;
 +  },
 +
 +  async getClassSecrets (classId) {
@@ -5377,7 +5534,7 @@ index 0000000..9785ff0
 +  },
 +
 +  /** Creates a student login with a new PIN. Uses a second Firebase app so the teacher stays signed in. */
-+  async _makeStudentLogin (classId, label, gen) {
++  async _makeStudentLogin (classId, label, gen, teacher) {
 +    let pin = randomPin();
 +    let email = 's-' + classId + '-' + slug(label) + (gen ? '-' + gen : '') + '@' + STUDENT_DOMAIN;
 +    let maker = window.firebase.apps.find(a => a.name === 'student-maker') || window.firebase.initializeApp(cloudConfig, 'student-maker');
@@ -5386,7 +5543,7 @@ index 0000000..9785ff0
 +    let cred = await makerAuth.createUserWithEmailAndPassword(email, passwordFor(label, pin));
 +    let uid = cred.user.uid;
 +    await makerAuth.signOut();
-+    await db.collection('students').doc(uid).set({ classId: classId, label: label });
++    await db.collection('students').doc(uid).set({ classId: classId, label: label, teacher: teacher });
 +    return { uid, email, pin };
 +  },
 +
@@ -5407,12 +5564,12 @@ index 0000000..9785ff0
 +      let label = pickNext();
 +      if (!label) break;
 +      used.add(label);
-+      let made = await this._makeStudentLogin(classId, label, 0);
++      let made = await this._makeStudentLogin(classId, label, 0, cls.teacher);
 +      students.push({ label: label, email: made.email, uid: made.uid });
 +      pins[label] = made.pin;
 +      added.push({ label: label, pin: made.pin });
 +      await ref.update({ students: students });
-+      await db.collection('classSecrets').doc(classId).set({ pins: pins }, { merge: true });
++      await db.collection('classSecrets').doc(classId).set({ teacher: cls.teacher, pins: pins }, { merge: true });
 +    }
 +    return added;
 +  },
@@ -5427,12 +5584,12 @@ index 0000000..9785ff0
 +    if (i === -1) throw new Error('not-found');
 +    let old = students[i];
 +    let gen = (old.gen || 0) + 1;
-+    let made = await this._makeStudentLogin(classId, label, gen);
-+    let projects = await db.collection('projects').where('owner', '==', old.uid).get();
++    let made = await this._makeStudentLogin(classId, label, gen, cls.teacher);
++    let projects = await db.collection('projects').where('owner', '==', old.uid).where('teacher', '==', cls.teacher).get();
 +    for (let d of projects.docs) await d.ref.update({ owner: made.uid });
 +    students[i] = { label: label, email: made.email, uid: made.uid, gen: gen };
 +    await ref.update({ students: students });
-+    await db.collection('classSecrets').doc(classId).set({ pins: { [label]: made.pin } }, { merge: true });
++    await db.collection('classSecrets').doc(classId).set({ teacher: cls.teacher, pins: { [label]: made.pin } }, { merge: true });
 +    await db.collection('students').doc(old.uid).delete();
 +    return made.pin;
 +  },
@@ -5456,7 +5613,9 @@ index 0000000..9785ff0
 +  async listProjects (opts) {
 +    if (B()) return B().listProjects(opts);
 +    let q = db.collection('projects');
-+    q = opts && opts.classId ? q.where('classId', '==', opts.classId) : q.where('owner', '==', currentUser.uid);
++    q = opts && opts.classId
++      ? q.where('classId', '==', opts.classId).where('teacher', '==', currentUser.uid)
++      : q.where('owner', '==', currentUser.uid);
 +    let snap = await q.get();
 +    return snap.docs.map(d => {
 +      let x = d.data();
@@ -5469,14 +5628,15 @@ index 0000000..9785ff0
 +    if (B()) return B().saveProject({ id, title, thumb, blob });
 +    let ref = id ? db.collection('projects').doc(id) : db.collection('projects').doc();
 +    let meta = { owner: currentUser.uid, title: title || 'Untitled', thumb: thumb || null,
-+      classId: currentUser.classId || null, label: currentUser.label || 'Teacher' };
++      classId: currentUser.classId || null, label: currentUser.label || 'Teacher',
++      teacher: currentUser.role === 'student' ? currentUser.teacher : currentUser.uid };
 +    return writeChunked(ref, meta, blob);
 +  },
 +
 +  loadProject (id) { return B() ? B().loadProject(id) : readChunked(db.collection('projects').doc(id)); },
 +  deleteProject (id) { return B() ? B().deleteProject(id) : deleteChunked(db.collection('projects').doc(id)); },
 +
-+  /* ----- Learn (teacher publishes, everyone reads) ----- */
++  /* ----- Learn (the developer publishes, everyone reads) ----- */
 +
 +  async listLearn () {
 +    if (B()) return B().listLearn();
@@ -5501,11 +5661,13 @@ index 0000000..9785ff0
 +  loadLearn (cloudId) { return B() ? B().loadLearn(cloudId) : readChunked(db.collection('learn').doc(cloudId)); },
 +  deleteLearn (cloudId) { return B() ? B().deleteLearn(cloudId) : deleteChunked(db.collection('learn').doc(cloudId)); },
 +
-+  /* ----- Class Sounds (teacher uploads, signed-in students use) ----- */
++  /* ----- Class Sounds (a teacher uploads them for their own students) ----- */
 +
 +  async listClassSounds () {
 +    if (B()) return B().listClassSounds();
-+    let snap = await db.collection('classSounds').get();
++    let teacher = currentUser && (currentUser.role === 'student' ? currentUser.teacher : currentUser.uid);
++    if (!teacher) return [];
++    let snap = await db.collection('classSounds').where('teacher', '==', teacher).get();
 +    return snap.docs.map(d => Object.assign({ id: d.id }, d.data()))
 +      .filter(x => x.chunkCount > 0)
 +      .sort((a, b) => String(a.name).localeCompare(String(b.name)));
@@ -5514,7 +5676,7 @@ index 0000000..9785ff0
 +  async uploadClassSound ({ name, seconds, blob }) {
 +    if (B()) return B().uploadClassSound({ name, seconds, blob });
 +    let ref = db.collection('classSounds').doc(slug(name).slice(0, 40) + '-' + randomId(4));
-+    return writeChunked(ref, { name: name, seconds: seconds || 1, type: blob.type || 'audio/mpeg' }, blob);
++    return writeChunked(ref, { teacher: currentUser.uid, name: name, seconds: seconds || 1, type: blob.type || 'audio/mpeg' }, blob);
 +  },
 +
 +  loadClassSound (id) { return B() ? B().loadClassSound(id) : readChunked(db.collection('classSounds').doc(id)); },
@@ -5529,7 +5691,8 @@ index 0000000..9785ff0
 +  /** Turns Firebase error codes into something a student or teacher can act on. */
 +  message (e) {
 +    let code = (e && (e.code || e.message)) || '';
-+    if (/wrong-password|invalid-credential|invalid-login|user-not-found|not-found/.test(code)) return "That PIN didn't match. Try again, or ask your teacher.";
++    if (/no-class/.test(code)) return "There's no class with that code. Check the code on your card and try again.";
++    if (/wrong-password|invalid-credential|invalid-login|user-not-found|not-found/.test(code)) return "That didn't match. Try again, or ask your teacher.";
 +    if (/too-many-requests/.test(code)) return 'Too many tries. Wait a minute, then try again.';
 +    if (/network|unavailable|failed-precondition|deadline/.test(code)) return "Couldn't reach the save server. Check the Wi-Fi and try again.";
 +    if (/permission-denied/.test(code)) return "This account isn't allowed to do that.";
