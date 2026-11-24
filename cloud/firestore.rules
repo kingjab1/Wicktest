@@ -104,6 +104,12 @@ service cloud.firestore {
       }
     }
 
+    // Icons the developer replaced: everyone's app reads them, only the developer changes them.
+    match /siteIcons/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     // Class Sounds belong to one teacher. Their students can hear and use them.
     match /classSounds/{id} {
       function sound() { return dataAt(/databases/$(database)/documents/classSounds/$(id)); }
