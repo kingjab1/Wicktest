@@ -66175,7 +66175,19 @@ Wick.GUIElement.NumberLine = class extends Wick.GUIElement {
     ctx.fillStyle = Wick.GUIElement.TIMELINE_BACKGROUND_COLOR;
     ctx.beginPath();
     ctx.rect(this.project.scrollX - 2, 0, width, height);
-    ctx.fill(); // Draw number line cells
+    ctx.fill(); // Play range (set in the editor), shown on the main timeline only
+
+    var playRange = Wick.GUIElement.playRange;
+    if (playRange && this.model === this.model.project.root.timeline) {
+      var rangeX = (playRange.start - 1) * this.gridCellWidth;
+      var rangeW = (playRange.end - playRange.start + 1) * this.gridCellWidth;
+      ctx.fillStyle = 'rgba(30, 226, 154, 0.25)';
+      ctx.fillRect(rangeX, 0, rangeW, height);
+      ctx.fillStyle = '#1EE29A';
+      ctx.fillRect(rangeX, 0, 3, height);
+      ctx.fillRect(rangeX + rangeW - 3, 0, 3, height);
+      ctx.fillRect(rangeX, 0, rangeW, 3);
+    } // Draw number line cells
 
     for (var i = -1; i < width / this.gridCellWidth + 1; i++) {
       var skip = Math.round(this.project.scrollX / this.gridCellWidth);

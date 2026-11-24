@@ -117,6 +117,30 @@ index c140aa3..95d7e24 100644
          } else if (this.model.sound) {
              // Sound waveform
  
+diff --git a/engine/src/gui/NumberLine.js b/engine/src/gui/NumberLine.js
+index 938d395..cd810ab 100644
+--- a/engine/src/gui/NumberLine.js
++++ b/engine/src/gui/NumberLine.js
+@@ -51,6 +51,19 @@ Wick.GUIElement.NumberLine = class extends Wick.GUIElement {
+         ctx.rect(this.project.scrollX-2, 0, width, height);
+         ctx.fill();
+ 
++        // Play range (set in the editor), shown on the main timeline only
++        var playRange = Wick.GUIElement.playRange;
++        if (playRange && this.model === this.model.project.root.timeline) {
++            var rangeX = (playRange.start - 1) * this.gridCellWidth;
++            var rangeW = (playRange.end - playRange.start + 1) * this.gridCellWidth;
++            ctx.fillStyle = 'rgba(30, 226, 154, 0.25)';
++            ctx.fillRect(rangeX, 0, rangeW, height);
++            ctx.fillStyle = '#1EE29A';
++            ctx.fillRect(rangeX, 0, 3, height);
++            ctx.fillRect(rangeX + rangeW - 3, 0, 3, height);
++            ctx.fillRect(rangeX, 0, rangeW, 3);
++        }
++
+         // Draw number line cells
+         for(var i = -1; i < width / this.gridCellWidth + 1; i++) {
+             var skip =  Math.round(this.project.scrollX / this.gridCellWidth);
 diff --git a/engine/src/view/View.Timeline.js b/engine/src/view/View.Timeline.js
 index 7cb9e16..2978df3 100644
 --- a/engine/src/view/View.Timeline.js
@@ -1705,7 +1729,7 @@ index 0000000..c11d425
 +}
 \ No newline at end of file
 diff --git a/src/Editor/Editor.jsx b/src/Editor/Editor.jsx
-index f4c1ad4..af0f49e 100644
+index f4c1ad4..f925b02 100644
 --- a/src/Editor/Editor.jsx
 +++ b/src/Editor/Editor.jsx
 @@ -160,6 +160,13 @@ class Editor extends EditorCore {
@@ -1722,7 +1746,28 @@ index f4c1ad4..af0f49e 100644
  
      // Wick Project File Input
      this.openProjectFileFromClient = window.createFileInput({
-@@ -1083,6 +1090,7 @@ class Editor extends EditorCore {
+@@ -276,6 +283,7 @@ class Editor extends EditorCore {
+   componentDidUpdate = (prevProps, prevState) => {
+     if(this.state.previewPlaying && !prevState.previewPlaying) {
+       this.project.view.canvas.focus();
++      this.prepareRangedPlay();
+       this.project.play({
+         onError: (error) => {
+           if (error) {
+@@ -290,10 +298,11 @@ class Editor extends EditorCore {
+         },
+         onAfterTick: () => {
+           //this.project.view.render();
++          this.rangeAfterTick();
+           this.project.guiElement.draw();
+         },
+         onBeforeTick: () => {
+-
++          this.rangeBeforeTick();
+         },
+       });
+     }
+@@ -1083,6 +1092,7 @@ class Editor extends EditorCore {
                            addTweenKeyframe={this.addTweenKeyframe}
                            onRef={ref => this.timelineComponent = ref}
                            dragSoundOntoTimeline={this.dragSoundOntoTimeline}
@@ -1730,7 +1775,7 @@ index f4c1ad4..af0f49e 100644
  
                            getToolSetting={this.getToolSetting}
                            setToolSetting={this.setToolSetting}
-@@ -1129,6 +1137,7 @@ class Editor extends EditorCore {
+@@ -1129,6 +1139,7 @@ class Editor extends EditorCore {
                            addTweenKeyframe={this.addTweenKeyframe}
                            onRef={ref => this.timelineComponent = ref}
                            dragSoundOntoTimeline={this.dragSoundOntoTimeline}
@@ -1739,7 +1784,7 @@ index f4c1ad4..af0f49e 100644
                        </DockedPanel>
                      </ReflexElement>
 diff --git a/src/Editor/EditorCore.jsx b/src/Editor/EditorCore.jsx
-index 0383385..01739a6 100644
+index 0383385..5f30ead 100644
 --- a/src/Editor/EditorCore.jsx
 +++ b/src/Editor/EditorCore.jsx
 @@ -23,6 +23,7 @@ import VideoExport from './export/VideoExport';
@@ -1926,10 +1971,116 @@ index 0383385..01739a6 100644
    openNewProjectConfirmation = () => {
      this.openWarningModal({
        description: "You will lose any unsaved changes.",
-@@ -1707,6 +1877,193 @@ class EditorCore extends Component {
+@@ -1707,6 +1877,299 @@ class EditorCore extends Component {
      return this.project.hasFont(font);
    }
  
++  /* ---------- Play range (timeline strip) ---------- */
++  // Saved per project (by its id) in this browser, so it comes back when the project is reopened here.
++
++  _rangeKey = () => 'playRange:' + this.project.uuid;
++
++  getPlayRange = () => {
++    try {
++      let r = JSON.parse(window.localStorage.getItem(this._rangeKey()) || 'null');
++      return r && r.start >= 1 && r.end >= r.start ? r : null;
++    } catch (e) { return (this._memRange && this._memRange[this.project.uuid]) || null; }
++  }
++
++  _savePlayRange = (range) => {
++    try {
++      if (range) window.localStorage.setItem(this._rangeKey(), JSON.stringify(range));
++      else window.localStorage.removeItem(this._rangeKey());
++    } catch (e) {
++      this._memRange = this._memRange || {};
++      this._memRange[this.project.uuid] = range;
++    }
++    this.syncPlayRangeToTimeline(true);
++    this.forceUpdate();
++  }
++
++  /** Lets the timeline drawing know about the range. */
++  syncPlayRangeToTimeline = (redraw) => {
++    let range = this.getPlayRange();
++    let before = JSON.stringify(window.Wick.GUIElement.playRange || null);
++    window.Wick.GUIElement.playRange = range;
++    if ((redraw || before !== JSON.stringify(range)) && this.project.guiElement) this.project.guiElement.draw();
++  }
++
++  setPlayRangeStart = () => {
++    let tl = this.project.root.timeline;
++    if (!this.project.focus.isRoot) { this.toast('Go back to the main timeline to set where playing starts.', 'info'); return; }
++    let ph = tl.playheadPosition;
++    let r = this.getPlayRange();
++    let end = r ? Math.max(r.end, ph) : Math.max(tl.length, ph);
++    this._savePlayRange({ start: ph, end: end });
++  }
++
++  setPlayRangeEnd = () => {
++    let tl = this.project.root.timeline;
++    if (!this.project.focus.isRoot) { this.toast('Go back to the main timeline to set where playing ends.', 'info'); return; }
++    let ph = tl.playheadPosition;
++    let r = this.getPlayRange();
++    let start = r ? Math.min(r.start, ph) : 1;
++    this._savePlayRange({ start: start, end: ph });
++  }
++
++  clearPlayRange = () => this._savePlayRange(null);
++
++  /** Whether playing starts over at the end (of the range, or of the whole animation). On by default. */
++  getPlayRepeat = () => {
++    try { return window.localStorage.getItem('playRepeat') !== 'off'; } catch (e) { return this._memRepeat !== false; }
++  }
++
++  togglePlayRepeat = () => {
++    let next = !this.getPlayRepeat();
++    try { window.localStorage.setItem('playRepeat', next ? 'on' : 'off'); } catch (e) { this._memRepeat = next; }
++    this.forceUpdate();
++  }
++
++  /** Called just before playing starts: jump into the range if the playhead is outside it. */
++  prepareRangedPlay = () => {
++    this._rangeStopAt = null;
++    let range = this.getPlayRange();
++    if (!range || !this.project.focus.isRoot) return;
++    let tl = this.project.root.timeline;
++    let end = Math.min(range.end, Math.max(1, tl.length));
++    let start = Math.min(range.start, end);
++    if (tl.playheadPosition < start || tl.playheadPosition >= end) tl.playheadPosition = start;
++  }
++
++  rangeBeforeTick = () => {
++    this._playheadBeforeTick = this.project.focus.timeline.playheadPosition;
++  }
++
++  /** Called after each frame while playing: keep the playhead inside the range, repeat or stop. */
++  rangeAfterTick = () => {
++    if (!this.project.focus.isRoot) return;
++    let tl = this.project.root.timeline;
++    if (this._rangeStopAt) { tl.playheadPosition = this._rangeStopAt; return; }
++    let ph = tl.playheadPosition;
++    let wrapped = ph < this._playheadBeforeTick;
++    let repeat = this.getPlayRepeat();
++    let range = this.getPlayRange();
++    if (range) {
++      let end = Math.min(range.end, Math.max(1, tl.length));
++      let start = Math.min(range.start, end);
++      if (ph > end || ph < start || wrapped) {
++        if (repeat) {
++          tl.playheadPosition = start;
++        } else {
++          tl.playheadPosition = end;
++          this._rangeStopAt = end;
++          this.stopPreviewPlaying();
++        }
++      }
++    } else if (!repeat && wrapped) {
++      tl.playheadPosition = tl.length;
++      this._rangeStopAt = tl.length;
++      this.stopPreviewPlaying();
++    }
++  }
++
 +  /* ---------- Frame length buttons and loops (timeline strip) ---------- */
 +
 +  /** 'push' moves later frames along; 'overwrite' covers or uncovers the frames next to it. */
@@ -4623,10 +4774,10 @@ index 719cfcd..c9186fe 100644
    }
 diff --git a/src/Editor/Panels/Timeline/TimelineTools/TimelineTools.jsx b/src/Editor/Panels/Timeline/TimelineTools/TimelineTools.jsx
 new file mode 100644
-index 0000000..7de18ef
+index 0000000..f67f578
 --- /dev/null
 +++ b/src/Editor/Panels/Timeline/TimelineTools/TimelineTools.jsx
-@@ -0,0 +1,49 @@
+@@ -0,0 +1,64 @@
 +/*
 + * Buttons in the timeline's top row: make a drawing one frame longer or shorter,
 + * choose whether that pushes or overwrites the frames next to it, and turn
@@ -4645,9 +4796,24 @@ index 0000000..7de18ef
 +  let mode = editor.getFrameLengthMode();
 +  let loopFrame = editor.getSelectedLoopFrame();
 +  let focusedLoop = editor.getFocusedLoop();
++  editor.syncPlayRangeToTimeline();
++  let range = editor.getPlayRange();
++  let repeat = editor.getPlayRepeat();
 +  let stop = e => e.stopPropagation();
 +  return (
 +    <div className='timeline-tools' onPointerDown={stop} onMouseDown={stop} onTouchStart={stop}>
++      <div className='timeline-tools-group' role='group' aria-label='Play range'>
++        <button className='tt-btn tt-range' title='Playing starts at the playhead' onClick={editor.setPlayRangeStart}>⇤ Start</button>
++        <button className='tt-btn tt-range' title='Playing ends at the playhead' onClick={editor.setPlayRangeEnd}>End ⇥</button>
++        {range &&
++          <button className='tt-btn tt-chip' title='Play the whole animation again' aria-label={'Clear the play range ' + range.start + ' to ' + range.end} onClick={editor.clearPlayRange}>
++            {range.start}–{range.end} ✕
++          </button>}
++        <button className={'tt-btn' + (repeat ? ' tt-on' : '')} aria-pressed={repeat}
++          title={repeat ? 'Playing starts over at the end. Tap to play once.' : 'Playing stops at the end. Tap to repeat.'} onClick={editor.togglePlayRepeat}>
++          {repeat ? '⟲ Repeat' : '→ Once'}
++        </button>
++      </div>
 +      <div className='timeline-tools-group' role='group' aria-label='Frame length'>
 +        <button className='tt-btn tt-icon' title='One frame shorter' aria-label='One frame shorter' onClick={() => editor.changeFrameLength(-1)}>−</button>
 +        <span className='tt-label'>Length</span>
@@ -4678,10 +4844,10 @@ index 0000000..7de18ef
 +}
 diff --git a/src/Editor/Panels/Timeline/TimelineTools/_timelinetools.scss b/src/Editor/Panels/Timeline/TimelineTools/_timelinetools.scss
 new file mode 100644
-index 0000000..93bda44
+index 0000000..e5039d4
 --- /dev/null
 +++ b/src/Editor/Panels/Timeline/TimelineTools/_timelinetools.scss
-@@ -0,0 +1,80 @@
+@@ -0,0 +1,83 @@
 +@import 'Editor/_wickbrand.scss';
 +
 +#animation-timeline-container { position: relative; }
@@ -4762,6 +4928,9 @@ index 0000000..93bda44
 +  padding: 0 2px;
 +}
 +.tt-done { background: $editor-green-highlight; color: $editor-primary; }
++
++.tt-range { background: #24433a; }
++.tt-chip { background: rgba(30, 226, 154, 0.25); color: $editor-modal-text-white; }
 diff --git a/src/Editor/Util/WickInput/WickButton/WickButton.jsx b/src/Editor/Util/WickInput/WickButton/WickButton.jsx
 index 6c1b02e..f440557 100644
 --- a/src/Editor/Util/WickInput/WickButton/WickButton.jsx

@@ -16,6 +16,7 @@ This is the sandbox for new features. It has everything the classroom version ha
 - **Record sounds** (testing). A Record tab in Sounds uses the microphone; recordings become WAV files at the playhead. Needs https.
 - **Frame length buttons** (testing). In the timeline's top row: − Length + changes the selected drawing by one frame, and Push / Overwrite picks whether the next frames move along or get covered.
 - **Loops** (testing). Loop frames turns the selected frames into one looping frame. +1 loop and Loop to end make it repeat; Edit loop goes inside to change the drawings, Done comes back. In the timeline each pass of a loop has its own shade, with a dot where each drawing inside starts.
+- **Play range** (testing). Start and End set where playing begins and ends, from the playhead; the range shows as a green band over the frame numbers, and tapping the range chip clears it. Repeat / Once picks whether playing starts over or stops at the end. The range is remembered per project in each browser.
 - **My Work and teacher mode** (hidden until `cloud-config.json` is added). See `cloud/README.md`.
 - **Hosting tweaks.** Built-in library objects are served as `.wickobj.json`, and the video exporter (`ffmpeg.js`) is split into two files.
 
