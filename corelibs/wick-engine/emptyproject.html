@@ -63752,8 +63752,6 @@ Wick.View.Timeline = class extends Wick.View {
   render() {
     this.frameLayers = [];
     var layersInRenderOrder = this.model.layers.filter(layer => {
-      // Layers named "Notes" or "Annotations" are teaching notes: visible while editing,
-      // never in exported or published animations.
       if (layer.project.isPublished && /^\s*(notes?|annotations?)\s*$/i.test(layer.name || '')) return false;
       return layer.project.isPublished || !layer.hidden;
     }).reverse();
@@ -65074,6 +65072,23 @@ Wick.GUIElement.BreadcrumbsButton = class extends Wick.GUIElement.Button {
  * You should have received a copy of the GNU General Public License
  * along with Wick Engine.  If not, see <https://www.gnu.org/licenses/>.
  */
+
+/**
+ * Loop frames (a frame holding only one clip that follows the main timeline) show
+ * where the drawings inside them start. Returns null for ordinary frames.
+ */
+Wick.GUIElement.loopInfoForFrame = function (frame) {
+  if (!frame || frame.paths.length || frame.clips.length !== 1) return null;
+  var clip = frame.clips[0];
+  if (!clip.isSynced || clip.animationType === 'single') return null;
+  var len = Math.max(1, clip.timeline.length);
+  var starts = {};
+  clip.timeline.layers.forEach(function (layer) {
+    layer.frames.forEach(function (f) { starts[f.start] = true; });
+  });
+  return { clip: clip, len: len, starts: starts, once: clip.animationType === 'playOnce' };
+};
+
 Wick.GUIElement.Frame = class extends Wick.GUIElement {
   constructor(model) {
     super(model);
@@ -65102,6 +65117,26 @@ Wick.GUIElement.Frame = class extends Wick.GUIElement {
     ctx.beginPath();
     ctx.roundRect(0, 0, widthPx, heightPx, Wick.GUIElement.FRAME_BORDER_RADIUS);
     ctx.fill();
+
+    // Loops: each pass gets its own shade, with a line where the loop starts over.
+    var loopInfo = Wick.GUIElement.loopInfoForFrame(this.model);
+    if (loopInfo) {
+      ctx.save();
+      ctx.clip();
+      for (var pass = 0; pass * loopInfo.len < this.model.length; pass++) {
+        var passX = pass * loopInfo.len * this.gridCellWidth;
+        var passW = Math.min(loopInfo.len, this.model.length - pass * loopInfo.len) * this.gridCellWidth;
+        ctx.fillStyle = loopInfo.once && pass > 0 ? '#e4e4e4' : (pass % 2 === 0 ? '#ddd2ff' : '#c9b8ff');
+        ctx.fillRect(passX, 0, passW, heightPx);
+        if (pass > 0 && !loopInfo.once) {
+          ctx.fillStyle = '#6b4bd6';
+          ctx.fillRect(passX - 1, 0, 2, heightPx);
+        }
+      }
+      ctx.restore();
+      ctx.beginPath();
+      ctx.roundRect(0, 0, widthPx, heightPx, Wick.GUIElement.FRAME_BORDER_RADIUS);
+    }
 
     if (!edge && this.mouseState === 'over' || this.mouseState === 'down') {
       ctx.lineWidth = 3;
@@ -65188,6 +65223,27 @@ Wick.GUIElement.Frame = class extends Wick.GUIElement {
       }
 
       ctx.stroke();
+
+      // Loops: a dot wherever a new drawing inside the loop starts, plus the loop's name.
+      if (loopInfo) {
+        ctx.fillStyle = '#6b4bd6';
+        for (var cell = 1; cell < this.model.length; cell++) {
+          if (loopInfo.once && cell >= loopInfo.len) break;
+          if (loopInfo.starts[(cell % loopInfo.len) + 1]) {
+            ctx.beginPath();
+            ctx.arc(cell * this.gridCellWidth + this.gridCellWidth / 2, this.gridCellHeight / 2, r * 0.8, 0, 2 * Math.PI);
+            ctx.fill();
+          }
+        }
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(0, 0, widthPx, heightPx);
+        ctx.clip();
+        ctx.font = 'bold 10px Nunito, sans-serif';
+        ctx.fillStyle = '#4a2fb0';
+        ctx.fillText('\u27F3 ' + (loopInfo.clip.identifier || 'Loop'), 4, 11);
+        ctx.restore();
+      }
     } else if (this.model.sound) {
       // Sound waveform
       var framerate = this.model.project.framerate;
