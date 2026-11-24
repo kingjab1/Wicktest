@@ -59429,7 +59429,8 @@ Wick.Tools.Cursor = class extends Wick.Tool {
     } else if (selectedObject && selectedObject instanceof Wick.Path && selectedObject.view.item instanceof paper.PointText) {// Double clicked text, switch to text tool and edit the text item.
       // TODO
     } else if (!selectedObject) {
-      // Double clicked the canvas, leave the current focus.
+      // Double tapped empty canvas: finish a loop that's open on the main timeline, if any.
+      if (Wick.Clip.onLeaveLoop && Wick.Clip.onLeaveLoop()) return; // Double clicked the canvas, leave the current focus.
       if (this.project.focusTimelineOfParentClip()) {
         this.fireEvent({
           eventName: 'canvasModified',
@@ -66222,6 +66223,80 @@ Wick.GUIElement.LayersContainer = class extends Wick.GUIElement {
  * You should have received a copy of the GNU General Public License
  * along with Wick Engine.  If not, see <https://www.gnu.org/licenses/>.
  */
+Wick.GUIElement.PlayRangeHandle = class extends Wick.GUIElement {
+    constructor (model, side) {
+        super(model);
+        this.side = side;
+        this.cursor = 'ew-resize';
+        this.canAutoScrollX = true;
+    }
+
+    get _edgeX () {
+        var r = Wick.GUIElement.playRange;
+        if (!r) return 0;
+        return this.side === 'start' ? (r.start - 1) * this.gridCellWidth : r.end * this.gridCellWidth;
+    }
+
+    draw () {
+        super.draw();
+        var r = Wick.GUIElement.playRange;
+        if (!r) return;
+        var ctx = this.ctx;
+        var x = this._edgeX;
+        var h = Wick.GUIElement.NUMBER_LINE_HEIGHT;
+        var w = 14;
+        var dir = this.side === 'start' ? -1 : 1;
+        ctx.save();
+        ctx.fillStyle = this.mouseState === 'out' ? '#1EE29A' : '#8ff7d1';
+        ctx.strokeStyle = '#0b3d2c';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x + dir * w, 0);
+        ctx.lineTo(x + dir * w, h * 0.42);
+        ctx.lineTo(x, h * 0.62);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        // grip lines
+        ctx.strokeStyle = 'rgba(11, 61, 44, 0.7)';
+        ctx.beginPath();
+        ctx.moveTo(x + dir * 4, 4); ctx.lineTo(x + dir * 4, h * 0.36);
+        ctx.moveTo(x + dir * 7, 4); ctx.lineTo(x + dir * 7, h * 0.36);
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    get bounds () {
+        var r = Wick.GUIElement.playRange;
+        if (!r || this.model !== this.model.project.root.timeline) return null;
+        var x = this._edgeX;
+        return {
+            x: this.side === 'start' ? x - 22 : x - 4,
+            y: 0,
+            width: 26,
+            height: Wick.GUIElement.NUMBER_LINE_HEIGHT * 0.75,
+        };
+    }
+
+    onMouseDrag (e) {
+        var r = Wick.GUIElement.playRange;
+        if (!r) return;
+        var frame = Math.round(this.localMouse.x / this.gridCellWidth);
+        if (this.side === 'start') {
+            r.start = Math.max(1, Math.min(r.end, frame + 1));
+        } else {
+            r.end = Math.max(r.start, frame);
+        }
+        if (Wick.GUIElement.onPlayRangeChange) Wick.GUIElement.onPlayRangeChange({ start: r.start, end: r.end });
+        this.projectWasSoftModified();
+    }
+
+    onMouseUp (e) {
+        this.projectWasModified();
+    }
+};
+
 Wick.GUIElement.NumberLine = class extends Wick.GUIElement {
   constructor(model) {
     super(model);
@@ -66230,6 +66305,8 @@ Wick.GUIElement.NumberLine = class extends Wick.GUIElement {
     this.playhead = new Wick.GUIElement.Playhead(model);
     this.onionSkinRangeLeft = new Wick.GUIElement.OnionSkinRange(model, 'left');
     this.onionSkinRangeRight = new Wick.GUIElement.OnionSkinRange(model, 'right');
+    this.rangeStartHandle = new Wick.GUIElement.PlayRangeHandle(model, 'start');
+    this.rangeEndHandle = new Wick.GUIElement.PlayRangeHandle(model, 'end');
   }
 
   draw() {
@@ -66285,7 +66362,13 @@ Wick.GUIElement.NumberLine = class extends Wick.GUIElement {
     } // Draw playhead
 
 
-    this.playhead.draw();
+    this.playhead.draw(); // Play range handles (drawn last so they're easy to grab)
+
+    if (Wick.GUIElement.playRange && this.model === this.model.project.root.timeline) {
+      this.rangeStartHandle.draw();
+      this.rangeEndHandle.draw();
+    }
+
     ctx.restore();
   } // Helper function for drawing each cell of the numberline (draws the border and the number)
 

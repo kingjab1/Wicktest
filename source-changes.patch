@@ -250,10 +250,19 @@ index da230b1..aaa4fcc 100644
          if(this.mouseState === 'down') {
              ctx.fillStyle = 'red';
 diff --git a/engine/src/gui/NumberLine.js b/engine/src/gui/NumberLine.js
-index 938d395..939071e 100644
+index 938d395..4faa752 100644
 --- a/engine/src/gui/NumberLine.js
 +++ b/engine/src/gui/NumberLine.js
-@@ -51,6 +51,28 @@ Wick.GUIElement.NumberLine = class extends Wick.GUIElement {
+@@ -28,6 +28,8 @@ Wick.GUIElement.NumberLine = class extends Wick.GUIElement {
+         this.playhead = new Wick.GUIElement.Playhead(model);
+         this.onionSkinRangeLeft = new Wick.GUIElement.OnionSkinRange(model, 'left');
+         this.onionSkinRangeRight = new Wick.GUIElement.OnionSkinRange(model, 'right');
++        this.rangeStartHandle = new Wick.GUIElement.PlayRangeHandle(model, 'start');
++        this.rangeEndHandle = new Wick.GUIElement.PlayRangeHandle(model, 'end');
+     }
+ 
+     draw () {
+@@ -51,6 +53,28 @@ Wick.GUIElement.NumberLine = class extends Wick.GUIElement {
          ctx.rect(this.project.scrollX-2, 0, width, height);
          ctx.fill();
  
@@ -282,8 +291,105 @@ index 938d395..939071e 100644
          // Draw number line cells
          for(var i = -1; i < width / this.gridCellWidth + 1; i++) {
              var skip =  Math.round(this.project.scrollX / this.gridCellWidth);
+@@ -69,6 +93,12 @@ Wick.GUIElement.NumberLine = class extends Wick.GUIElement {
+         // Draw playhead
+         this.playhead.draw();
+ 
++        // Play range handles (drawn last so they're easy to grab)
++        if (Wick.GUIElement.playRange && this.model === this.model.project.root.timeline) {
++            this.rangeStartHandle.draw();
++            this.rangeEndHandle.draw();
++        }
++
+         ctx.restore();
+     }
+ 
+diff --git a/engine/src/gui/PlayRangeHandle.js b/engine/src/gui/PlayRangeHandle.js
+new file mode 100644
+index 0000000..d4e41bc
+--- /dev/null
++++ b/engine/src/gui/PlayRangeHandle.js
+@@ -0,0 +1,78 @@
++/*
++ * Drag handles at the two ends of the play range on the number line (set in the editor).
++ * Part of a modified version of Wick Engine, licensed under the GNU GPL v3 or later.
++ */
++
++Wick.GUIElement.PlayRangeHandle = class extends Wick.GUIElement {
++    constructor (model, side) {
++        super(model);
++        this.side = side;
++        this.cursor = 'ew-resize';
++        this.canAutoScrollX = true;
++    }
++
++    get _edgeX () {
++        var r = Wick.GUIElement.playRange;
++        if (!r) return 0;
++        return this.side === 'start' ? (r.start - 1) * this.gridCellWidth : r.end * this.gridCellWidth;
++    }
++
++    draw () {
++        super.draw();
++        var r = Wick.GUIElement.playRange;
++        if (!r) return;
++        var ctx = this.ctx;
++        var x = this._edgeX;
++        var h = Wick.GUIElement.NUMBER_LINE_HEIGHT;
++        var w = 14;
++        var dir = this.side === 'start' ? -1 : 1;
++        ctx.save();
++        ctx.fillStyle = this.mouseState === 'out' ? '#1EE29A' : '#8ff7d1';
++        ctx.strokeStyle = '#0b3d2c';
++        ctx.lineWidth = 1;
++        ctx.beginPath();
++        ctx.moveTo(x, 0);
++        ctx.lineTo(x + dir * w, 0);
++        ctx.lineTo(x + dir * w, h * 0.42);
++        ctx.lineTo(x, h * 0.62);
++        ctx.closePath();
++        ctx.fill();
++        ctx.stroke();
++        // grip lines
++        ctx.strokeStyle = 'rgba(11, 61, 44, 0.7)';
++        ctx.beginPath();
++        ctx.moveTo(x + dir * 4, 4); ctx.lineTo(x + dir * 4, h * 0.36);
++        ctx.moveTo(x + dir * 7, 4); ctx.lineTo(x + dir * 7, h * 0.36);
++        ctx.stroke();
++        ctx.restore();
++    }
++
++    get bounds () {
++        var r = Wick.GUIElement.playRange;
++        if (!r || this.model !== this.model.project.root.timeline) return null;
++        var x = this._edgeX;
++        return {
++            x: this.side === 'start' ? x - 22 : x - 4,
++            y: 0,
++            width: 26,
++            height: Wick.GUIElement.NUMBER_LINE_HEIGHT * 0.75,
++        };
++    }
++
++    onMouseDrag (e) {
++        var r = Wick.GUIElement.playRange;
++        if (!r) return;
++        var frame = Math.round(this.localMouse.x / this.gridCellWidth);
++        if (this.side === 'start') {
++            r.start = Math.max(1, Math.min(r.end, frame + 1));
++        } else {
++            r.end = Math.max(r.start, frame);
++        }
++        if (Wick.GUIElement.onPlayRangeChange) Wick.GUIElement.onPlayRangeChange({ start: r.start, end: r.end });
++        this.projectWasSoftModified();
++    }
++
++    onMouseUp (e) {
++        this.projectWasModified();
++    }
++};
 diff --git a/engine/src/tools/Cursor.js b/engine/src/tools/Cursor.js
-index c7bb275..8d1f625 100644
+index c7bb275..965b117 100644
 --- a/engine/src/tools/Cursor.js
 +++ b/engine/src/tools/Cursor.js
 @@ -114,6 +114,8 @@ Wick.Tools.Cursor = class extends Wick.Tool {
@@ -295,6 +401,15 @@ index c7bb275..8d1f625 100644
          if(selectedObject && selectedObject instanceof Wick.Clip) {
              // Double clicked a Clip, set the focus to that Clip.
              if (this.project.focusTimelineOfSelectedClip() ) {
+@@ -123,6 +125,8 @@ Wick.Tools.Cursor = class extends Wick.Tool {
+             // Double clicked text, switch to text tool and edit the text item.
+             // TODO
+         } else if (!selectedObject) {
++            // Double tapped empty canvas: finish a loop that's open on the main timeline, if any.
++            if (Wick.Clip.onLeaveLoop && Wick.Clip.onLeaveLoop()) return;
+             // Double clicked the canvas, leave the current focus.
+             if (this.project.focusTimelineOfParentClip()) {
+                 this.fireEvent({eventName: 'canvasModified', actionName: 'cursorFocusTimelineParent'});
 diff --git a/engine/src/view/View.Timeline.js b/engine/src/view/View.Timeline.js
 index 7cb9e16..7bf09a0 100644
 --- a/engine/src/view/View.Timeline.js
@@ -1988,18 +2103,19 @@ index 0000000..c11d425
 +}
 \ No newline at end of file
 diff --git a/src/Editor/Editor.jsx b/src/Editor/Editor.jsx
-index f4c1ad4..08a6579 100644
+index f4c1ad4..777b404 100644
 --- a/src/Editor/Editor.jsx
 +++ b/src/Editor/Editor.jsx
-@@ -18,6 +18,7 @@
+@@ -18,6 +18,8 @@
   */
  
  import React from 'react';
 +import installCanvasGestures from './Gestures/canvasGestures';
++import installHoverLabels from './Gestures/hoverLabels';
  
  import './_editor.scss';
  import './styles/default_theme.css';
-@@ -160,6 +161,13 @@ class Editor extends EditorCore {
+@@ -160,6 +162,13 @@ class Editor extends EditorCore {
         */
        window.warnBeforeSave = (args) => {this.openWarningModal(args)};
      }
@@ -2013,7 +2129,7 @@ index f4c1ad4..08a6579 100644
  
      // Wick Project File Input
      this.openProjectFileFromClient = window.createFileInput({
-@@ -202,7 +210,7 @@ class Editor extends EditorCore {
+@@ -202,7 +211,7 @@ class Editor extends EditorCore {
    }
  
    UNSAFE_componentWillMount = () => {
@@ -2022,13 +2138,26 @@ index f4c1ad4..08a6579 100644
      // Initialize "live" engine state
      this.project = new window.Wick.Project();
      this.attachErrorHandlers();
-@@ -264,6 +272,21 @@ class Editor extends EditorCore {
+@@ -264,6 +273,34 @@ class Editor extends EditorCore {
  
    componentDidMount = () => {
      console.log("Project Mounted");
 +    // Double-tapping a loop on the canvas opens it right on the main timeline.
 +    window.Wick.Clip.onEditLoop = (clip) => !!(this.getLoopInFrame(clip.parentFrame) && this.editSelectedLoop(clip));
 +    installCanvasGestures(this);
++    installHoverLabels();
++    // Dragging the play range handles on the timeline.
++    window.Wick.GUIElement.onPlayRangeChange = (r) => {
++      try { window.localStorage.setItem(this._rangeKey(), JSON.stringify(r)); } catch (e) { this._memRange = Object.assign({}, this._memRange, { [this.project.uuid]: r }); }
++      clearTimeout(this._rangeRender);
++      this._rangeRender = setTimeout(() => this.forceUpdate(), 60);
++    };
++    // Double-tapping empty canvas (select tool) finishes a loop that's open for editing.
++    window.Wick.Clip.onLeaveLoop = () => {
++      if (!this.getLoopEdit()) return false;
++      this.finishEditingLoop();
++      return true;
++    };
 +    // A closed loop can't be drawn on: the drawing would land outside the loop and break it.
 +    window.Wick.Project.drawBlocker = (project) => project === this.project && !!this.getLoopInFrame(project.activeFrame);
 +    window.addEventListener('pointerdown', (e) => {
@@ -2044,7 +2173,7 @@ index f4c1ad4..08a6579 100644
      this.hidePreloader();
      this.onWindowResize();
      if(!this.tryToParseProjectURL()) {
-@@ -276,6 +299,7 @@ class Editor extends EditorCore {
+@@ -276,6 +313,7 @@ class Editor extends EditorCore {
    componentDidUpdate = (prevProps, prevState) => {
      if(this.state.previewPlaying && !prevState.previewPlaying) {
        this.project.view.canvas.focus();
@@ -2052,7 +2181,7 @@ index f4c1ad4..08a6579 100644
        this.project.play({
          onError: (error) => {
            if (error) {
-@@ -290,10 +314,11 @@ class Editor extends EditorCore {
+@@ -290,10 +328,11 @@ class Editor extends EditorCore {
          },
          onAfterTick: () => {
            //this.project.view.render();
@@ -2065,7 +2194,7 @@ index f4c1ad4..08a6579 100644
          },
        });
      }
-@@ -670,6 +695,13 @@ class Editor extends EditorCore {
+@@ -670,6 +709,13 @@ class Editor extends EditorCore {
        this.project.history.pushState(window.Wick.History.StateType.ONLY_VISIBLE_OBJECTS, options.actionName);
      }
  
@@ -2079,7 +2208,7 @@ index f4c1ad4..08a6579 100644
      // Render engine
      this.project.view.render();
      this.project.guiElement.draw();
-@@ -1083,6 +1115,7 @@ class Editor extends EditorCore {
+@@ -1083,6 +1129,7 @@ class Editor extends EditorCore {
                            addTweenKeyframe={this.addTweenKeyframe}
                            onRef={ref => this.timelineComponent = ref}
                            dragSoundOntoTimeline={this.dragSoundOntoTimeline}
@@ -2087,7 +2216,7 @@ index f4c1ad4..08a6579 100644
  
                            getToolSetting={this.getToolSetting}
                            setToolSetting={this.setToolSetting}
-@@ -1129,6 +1162,7 @@ class Editor extends EditorCore {
+@@ -1129,6 +1176,7 @@ class Editor extends EditorCore {
                            addTweenKeyframe={this.addTweenKeyframe}
                            onRef={ref => this.timelineComponent = ref}
                            dragSoundOntoTimeline={this.dragSoundOntoTimeline}
@@ -2096,7 +2225,7 @@ index f4c1ad4..08a6579 100644
                        </DockedPanel>
                      </ReflexElement>
 diff --git a/src/Editor/EditorCore.jsx b/src/Editor/EditorCore.jsx
-index 0383385..e0b7479 100644
+index 0383385..d90469e 100644
 --- a/src/Editor/EditorCore.jsx
 +++ b/src/Editor/EditorCore.jsx
 @@ -23,6 +23,7 @@ import VideoExport from './export/VideoExport';
@@ -2291,7 +2420,7 @@ index 0383385..e0b7479 100644
    openNewProjectConfirmation = () => {
      this.openWarningModal({
        description: "You will lose any unsaved changes.",
-@@ -1707,6 +1878,567 @@ class EditorCore extends Component {
+@@ -1707,6 +1878,580 @@ class EditorCore extends Component {
      return this.project.hasFont(font);
    }
  
@@ -2346,6 +2475,19 @@ index 0383385..e0b7479 100644
 +  }
 +
 +  clearPlayRange = () => this._savePlayRange(null);
++
++  /** Set the play range from typed numbers or the handles on the timeline. A missing end uses the other end or the animation's ends. */
++  setPlayRangeValues = (start, end) => {
++    let tl = this.project.root.timeline;
++    let r = this.getPlayRange();
++    let s = parseInt(start, 10), e = parseInt(end, 10);
++    if (isNaN(s)) s = r ? r.start : 1;
++    if (isNaN(e)) e = r ? r.end : Math.max(tl.length, s);
++    s = Math.max(1, s);
++    e = Math.max(1, e);
++    if (e < s) { let t = s; s = e; e = t; }
++    this._savePlayRange({ start: s, end: e });
++  }
 +
 +  /** Whether playing starts over at the end (of the range, or of the whole animation). On by default. */
 +  getPlayRepeat = () => {
@@ -2878,10 +3020,10 @@ index d19a6c0..8aac91a 100644
                      createButtonFromSelection={props.editor.createButtonFromSelection}
 diff --git a/src/Editor/Gestures/canvasGestures.js b/src/Editor/Gestures/canvasGestures.js
 new file mode 100644
-index 0000000..c620ef4
+index 0000000..c8a23ba
 --- /dev/null
 +++ b/src/Editor/Gestures/canvasGestures.js
-@@ -0,0 +1,482 @@
+@@ -0,0 +1,493 @@
 +/*
 + * Touch gestures for the canvas (iPad):
 + *   - two fingers: pinch to zoom, drag to pan, twist to rotate (snaps back to straight near 0°)
@@ -3102,7 +3244,8 @@ index 0000000..c620ef4
 +      path = new paper.Path.Arc({ from: shape.from, through: shape.through, to: shape.to, insert: false });
 +    } else if (shape.type === 'smooth') {
 +      path = new paper.Path({ segments: shape.points, closed: shape.closed, insert: false });
-+      path.simplify(Math.max(2.5, 4 / paperView().zoom));
++      // Smooth it out: wobbles go, the overall shape stays.
++      path.simplify(Math.max(4, shape.size * 0.045));
 +      path.smooth({ type: 'continuous' });
 +    } else if (shape.type === 'ellipse') {
 +      path = new paper.Path.Ellipse({ center: shape.center, radius: shape.radius, insert: false });
@@ -3301,7 +3444,7 @@ index 0000000..c620ef4
 +      let off = pts.reduce((m, p) => Math.max(m, Math.abs(dist(p, c) - c.r)), 0);
 +      if (off < Math.max(4, c.r * 0.12)) return { type: 'arc', from: first, through: mid, to: last };
 +    }
-+    return { type: 'smooth', points: pts, closed: false };
++    return { type: 'smooth', points: pts, closed: false, size: size };
 +  }
 +
 +  // Straight-sided shapes: find the corners, then check that every side really is straight.
@@ -3309,24 +3452,30 @@ index 0000000..c620ef4
 +  let corners = simplify(loop, size * 0.1);
 +  if (corners.length > 1 && dist(corners[0], corners[corners.length - 1]) < size * 0.2) corners.pop();
 +  corners = corners.filter((c, i) => i === 0 || dist(c, corners[i - 1]) > size * 0.15);
++  let polygon = null, polygonErr = Infinity;
 +  if (corners.length === 3 || corners.length === 4) {
 +    let idx = corners.map(c => loop.indexOf(c));
 +    let straight = idx.every((start, n) => {
 +      let end = n + 1 < idx.length ? idx[n + 1] : loop.length - 1;
 +      let a = loop[start], b = loop[end];
-+      return end > start && edgeBend(loop, start, end) < Math.max(5, dist(a, b) * 0.09);
++      return end > start && edgeBend(loop, start, end) < Math.max(5, dist(a, b) * 0.1);
 +    });
 +    if (straight) {
++      polygon = { type: 'polygon', points: corners };
 +      if (corners.length === 4) {
 +        let square = corners.every((c, i) => {
 +          let n = corners[(i + 1) % 4];
 +          let ang = Math.abs(Math.atan2(n.y - c.y, n.x - c.x) * 180 / Math.PI) % 90;
 +          return ang < 12 || ang > 78;
 +        });
-+        if (square) return { type: 'polygon', points: [{ x: minX, y: minY }, { x: maxX, y: minY }, { x: maxX, y: maxY }, { x: minX, y: maxY }] };
++        if (square) polygon.points = [{ x: minX, y: minY }, { x: maxX, y: minY }, { x: maxX, y: maxY }, { x: minX, y: maxY }];
 +      }
-+      return { type: 'polygon', points: corners };
++      // How far the stroke sits from the shape's sides, on average, as a share of its size.
++      let pp = polygon.points;
++      polygonErr = pts.reduce((sum, p) => sum + Math.min.apply(null, pp.map((c, i) => distToSegment(p, c, pp[(i + 1) % pp.length]))), 0) / pts.length / size;
 +    }
++    if (typeof window === 'undefined' && process.env.SNAPDEBUG) console.log('   polygonErr', polygonErr.toFixed(3));
++    if (polygonErr > 0.03) polygon = null; // the sides bow out too much to be a straight-sided shape
 +  }
 +
 +  // Ovals, tilted the way they were drawn.
@@ -3341,6 +3490,9 @@ index 0000000..c620ef4
 +  let ry = (Math.max.apply(null, ly) - Math.min.apply(null, ly)) / 2;
 +  let ox = (Math.max.apply(null, lx) + Math.min.apply(null, lx)) / 2, oy = (Math.max.apply(null, ly) + Math.min.apply(null, ly)) / 2;
 +  let err = local.reduce((sum, p) => sum + Math.abs(Math.hypot((p.x - ox) / Math.max(rx, 1), (p.y - oy) / Math.max(ry, 1)) - 1), 0) / local.length;
++  // The same kind of measure for the oval, so the two can be compared (a diamond shouldn't become a circle).
++  let ovalErr = err * ((rx + ry) / 2) / size;
++  if (polygon && (err >= 0.15 || polygonErr <= ovalErr)) return polygon;
 +  if (err < 0.15) {
 +    let deg = angle * 180 / Math.PI;
 +    let center = { x: cx + ox * Math.cos(angle) - oy * Math.sin(angle), y: cy + ox * Math.sin(angle) + oy * Math.cos(angle) };
@@ -3353,7 +3505,8 @@ index 0000000..c620ef4
 +  }
 +
 +  // Anything else: keep the shape, just tidy and close it.
-+  return { type: 'smooth', points: pts, closed: true };
++  if (polygon) return polygon;
++  return { type: 'smooth', points: pts, closed: true, size: size };
 +}
 +
 +function circleThrough (a, b, c) {
@@ -3363,6 +3516,65 @@ index 0000000..c620ef4
 +  let x = (a2 * (b.y - c.y) + b2 * (c.y - a.y) + c2 * (a.y - b.y)) / d;
 +  let y = (a2 * (c.x - b.x) + b2 * (a.x - c.x) + c2 * (b.x - a.x)) / d;
 +  return { x: x, y: y, r: Math.hypot(a.x - x, a.y - y) };
++}
+diff --git a/src/Editor/Gestures/hoverLabels.js b/src/Editor/Gestures/hoverLabels.js
+new file mode 100644
+index 0000000..6a4ffc6
+--- /dev/null
++++ b/src/Editor/Gestures/hoverLabels.js
+@@ -0,0 +1,53 @@
++/*
++ * Shows a button's name when an Apple Pencil hovers over it (Safari doesn't show title tooltips for the
++ * Pencil). A mouse already gets the browser's own tooltip, so this only runs for the Pencil.
++ *
++ * This file is part of a modified version of Wick Editor and is licensed
++ * under the GNU General Public License v3 or later.
++ */
++
++export default function installHoverLabels () {
++  if (window.__keyflameHoverLabels) return;
++  window.__keyflameHoverLabels = true;
++
++  let bubble = null, timer = null, current = null;
++
++  function hide () {
++    clearTimeout(timer);
++    timer = null;
++    current = null;
++    if (bubble) bubble.style.display = 'none';
++  }
++
++  function show (el) {
++    let text = el.getAttribute('data-label') || el.getAttribute('aria-label') || el.getAttribute('title');
++    if (!text) return;
++    if (!bubble) {
++      bubble = document.createElement('div');
++      bubble.className = 'hover-label';
++      bubble.setAttribute('role', 'tooltip');
++      document.body.appendChild(bubble);
++    }
++    bubble.textContent = text;
++    bubble.style.display = 'block';
++    let r = el.getBoundingClientRect();
++    let b = bubble.getBoundingClientRect();
++    let x = Math.min(window.innerWidth - b.width - 6, Math.max(6, r.left + r.width / 2 - b.width / 2));
++    let y = r.top - b.height - 8;
++    if (y < 4) y = r.bottom + 8;
++    bubble.style.left = x + 'px';
++    bubble.style.top = y + 'px';
++  }
++
++  window.addEventListener('pointermove', (e) => {
++    if (e.pointerType !== 'pen' || e.buttons) { if (e.buttons) hide(); return; }
++    let el = e.target && e.target.closest && e.target.closest('[title], [aria-label], [data-label]');
++    if (el && (el.tagName === 'CANVAS' || el.id === 'root')) el = null;
++    if (el === current) return;
++    hide();
++    if (!el) return;
++    current = el;
++    timer = setTimeout(() => show(el), 280);
++  }, true);
++  ['pointerdown', 'pointerleave', 'pointercancel', 'scroll'].forEach(type => window.addEventListener(type, hide, true));
 +}
 diff --git a/src/Editor/Modals/BuiltinLibrary/BuiltinLibrary.jsx b/src/Editor/Modals/BuiltinLibrary/BuiltinLibrary.jsx
 index d30e413..fc812b3 100644
@@ -6051,14 +6263,14 @@ index 19db41e..c63f0da 100644
              </Fragment>
          )
 diff --git a/src/Editor/Panels/Timeline/Timeline.jsx b/src/Editor/Panels/Timeline/Timeline.jsx
-index 719cfcd..b4b47be 100644
+index 719cfcd..2d9ecb3 100644
 --- a/src/Editor/Panels/Timeline/Timeline.jsx
 +++ b/src/Editor/Panels/Timeline/Timeline.jsx
 @@ -23,10 +23,12 @@ import { DropTarget } from 'react-dnd';
  import DragDropTypes from 'Editor/DragDropTypes.js';
  
  import './_timeline.scss';
-+import TimelineTools from './TimelineTools/TimelineTools';
++import TimelineTools, { FrameModeToggle } from './TimelineTools/TimelineTools';
  import 'bootstrap/dist/css/bootstrap.min.css';
  
  import iconLock from 'resources/timeline-icons/locked.png';
@@ -6075,20 +6287,21 @@ index 719cfcd..b4b47be 100644
        Icons.loadIcon('unlock_layer', iconLock);
        Icons.loadIcon('copy_frame_forward', iconCopyForward);
        Icons.loadIcon('cut_frame', iconSplit);
-@@ -102,6 +105,7 @@ class Timeline extends Component {
+@@ -102,6 +105,8 @@ class Timeline extends Component {
        <div id="animation-timeline-container" aria-label="Timeline">
          { isOver && <div className="drag-drop-overlay" /> }
          <div id="animation-timeline" ref={this.canvasContainer} />
 +        <TimelineTools editor={this.props.editor} />
++        <FrameModeToggle editor={this.props.editor} />
        </div>
      )
    }
 diff --git a/src/Editor/Panels/Timeline/TimelineTools/TimelineTools.jsx b/src/Editor/Panels/Timeline/TimelineTools/TimelineTools.jsx
 new file mode 100644
-index 0000000..04c8d57
+index 0000000..28029b9
 --- /dev/null
 +++ b/src/Editor/Panels/Timeline/TimelineTools/TimelineTools.jsx
-@@ -0,0 +1,190 @@
+@@ -0,0 +1,234 @@
 +/*
 + * The tool strip in the timeline's top row: play range, frame length, push/overwrite, in-between,
 + * duplicate, reverse and loops. Icon buttons keep it small. The ⋯ menu picks which tools show and
@@ -6103,16 +6316,19 @@ index 0000000..04c8d57
 +import './_timelinetools.scss';
 +
 +const ICONS = {
-+  start: <><path d='M3 2.5v11' /><path d='M7 4.5l6 3.5-6 3.5z' fill='currentColor' /></>,
-+  end: <><path d='M13 2.5v11' /><path d='M3 4.5l6 3.5-6 3.5z' fill='currentColor' /></>,
++  // |← with a little S, and →| with a little E
++  start: <><path d='M2.5 2v10' /><path d='M12 7H4.5' /><path d='M7.5 4L4.5 7l3 3' /><text x='12.2' y='15.6' fontSize='6.5' fontWeight='800' fill='currentColor' stroke='none' fontFamily='Nunito Sans, sans-serif'>S</text></>,
++  end: <><path d='M13.5 2v10' /><path d='M4 7h7.5' /><path d='M8.5 4l3 3-3 3' /><text x='0.6' y='15.6' fontSize='6.5' fontWeight='800' fill='currentColor' stroke='none' fontFamily='Nunito Sans, sans-serif'>E</text></>,
 +  repeat: <><path d='M2.5 7.5a5 5 0 0 1 9-3' /><path d='M12 1.5v3.5H8.5' /><path d='M13.5 8.5a5 5 0 0 1-9 3' /><path d='M4 14.5V11h3.5' /></>,
 +  once: <><path d='M2 8h8.5' /><path d='M8 5l3 3-3 3' /><path d='M14 3v10' /></>,
-+  eye: <><path d='M1 8s2.6-4.5 7-4.5S15 8 15 8s-2.6 4.5-7 4.5S1 8 1 8z' /><circle cx='8' cy='8' r='2' /></>,
-+  eyeOff: <><path d='M1 8s2.6-4.5 7-4.5S15 8 15 8s-2.6 4.5-7 4.5S1 8 1 8z' /><path d='M2.5 2.5l11 11' /></>,
++  // the guide layer's dotted path
++  guide: <><path d='M2 12.7C4.7 4 10 2.7 13.3 6' strokeDasharray='2.1 2.1' /><circle cx='2.3' cy='12.7' r='1.6' fill='currentColor' stroke='none' /><path d='M11.3 3.7l3 2.6-3.6 1.3z' fill='currentColor' stroke='none' /></>,
 +  minus: <path d='M3.5 8h9' />,
 +  plus: <><path d='M3.5 8h9' /><path d='M8 3.5v9' /></>,
-+  push: <><rect x='9.5' y='4' width='5' height='8' rx='1' /><path d='M1.5 8h6' /><path d='M5 5l3 3-3 3' /></>,
-+  overwrite: <><rect x='1.5' y='4' width='7' height='8' rx='1' /><rect x='6.5' y='4' width='8' height='8' rx='1' fill='currentColor' fillOpacity='0.45' /></>,
++  // a growing frame shoves the next one along
++  push: <><rect x='1' y='4' width='6.5' height='8' rx='1' fill='currentColor' fillOpacity='0.55' /><path d='M8.6 8h2.6' /><path d='M10.2 6.2L12 8l-1.8 1.8' /><rect x='12.8' y='4' width='2.4' height='8' rx='0.8' /></>,
++  // a growing frame covers the next one
++  overwrite: <><rect x='7' y='4' width='8' height='8' rx='1' strokeDasharray='1.6 1.6' /><rect x='1' y='4' width='10' height='8' rx='1' fill='currentColor' fillOpacity='0.55' /></>,
 +  inbetween: <><rect x='1' y='4' width='4' height='8' rx='1' /><rect x='11' y='4' width='4' height='8' rx='1' /><circle cx='8' cy='8' r='1.8' fill='currentColor' stroke='none' /></>,
 +  duplicate: <><rect x='1.5' y='1.5' width='8.5' height='8.5' rx='1.5' /><rect x='6' y='6' width='8.5' height='8.5' rx='1.5' /></>,
 +  reverse: <><path d='M2 5h10.5' /><path d='M10 2.5L12.5 5 10 7.5' /><path d='M14 11H3.5' /><path d='M6 8.5L3.5 11 6 13.5' /></>,
@@ -6129,28 +6345,62 @@ index 0000000..04c8d57
 +  );
 +}
 +
-+/** Tools you can show or hide from the ⋯ menu, in strip order. */
++/** Tools in the strip. The ⋯ menu shows, hides and reorders them. */
 +const TOOLS = [
-+  { id: 'range', name: 'Play range (start and end)' },
-+  { id: 'repeat', name: 'Repeat or play once' },
-+  { id: 'guides', name: 'Guides while playing' },
-+  { id: 'length', name: 'Frame length − / +' },
-+  { id: 'mode', name: 'Push or overwrite' },
-+  { id: 'inbetween', name: 'In-between' },
-+  { id: 'duplicate', name: 'Duplicate' },
-+  { id: 'reverse', name: 'Reverse' },
-+  { id: 'loop', name: 'Loops' },
++  { id: 'range', name: 'Play range (start and end)', icon: 'start' },
++  { id: 'repeat', name: 'Repeat or play once', icon: 'repeat' },
++  { id: 'guides', name: 'Guides while playing', icon: 'guide' },
++  { id: 'length', name: 'Frame length − / +', icon: 'plus' },
++  { id: 'duplicate', name: 'Duplicate', icon: 'duplicate' },
++  { id: 'reverse', name: 'Reverse', icon: 'reverse' },
++  { id: 'loop', name: 'Loops', icon: 'loop' },
 +];
++const DEFAULT_ORDER = TOOLS.map(t => t.id);
 +
 +function loadPrefs () {
 +  try {
 +    let p = JSON.parse(window.localStorage.getItem('stripTools') || '{}');
-+    return { hidden: Array.isArray(p.hidden) ? p.hidden : [], names: !!p.names };
-+  } catch (e) { return { hidden: [], names: false }; }
++    let order = (Array.isArray(p.order) ? p.order : []).filter(id => DEFAULT_ORDER.indexOf(id) !== -1);
++    DEFAULT_ORDER.forEach(id => { if (order.indexOf(id) === -1) order.push(id); });
++    return { hidden: Array.isArray(p.hidden) ? p.hidden : [], names: !!p.names, order: order };
++  } catch (e) { return { hidden: [], names: false, order: DEFAULT_ORDER.slice() }; }
 +}
 +
 +function savePrefs (prefs) {
 +  try { window.localStorage.setItem('stripTools', JSON.stringify(prefs)); } catch (e) {}
++}
++
++/** A number box for one end of the play range. Typing a number and pressing return (or tapping away) sets it. */
++function RangeBox ({ value, placeholder, label, onSet }) {
++  let [text, setText] = useState(null); // null = not editing, show the saved value
++  let commit = () => { if (text !== null && text.trim() !== '') onSet(text); setText(null); };
++  return (
++    <input className='tt-range-box' type='text' inputMode='numeric' pattern='[0-9]*' maxLength={4} aria-label={label} title={label}
++      value={text !== null ? text : (value || '')} placeholder={placeholder}
++      onFocus={e => { setText(String(value || '')); setTimeout(() => e.target.select && e.target.select(), 0); }}
++      onChange={e => setText(e.target.value.replace(/[^0-9]/g, ''))}
++      onBlur={commit}
++      onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); if (e.key === 'Escape') { setText(null); e.target.blur(); } }} />
++  );
++}
++
++/** Push or Overwrite, shown at the bottom of the timeline next to the gap fill and frame size buttons. */
++export function FrameModeToggle ({ editor }) {
++  if (!editor || !editor.getFrameLengthMode) return null;
++  let mode = editor.getFrameLengthMode();
++  let stop = e => e.stopPropagation();
++  return (
++    <div className='tt-mode-bottom' role='group' aria-label='When a frame gets longer' onPointerDown={stop} onMouseDown={stop} onTouchStart={stop}>
++      <button className={'tt-mini' + (mode === 'push' ? ' tt-on' : '')} aria-pressed={mode === 'push'} aria-label='Push'
++        title='Push: longer frames push the next frames along. Shorter frames pull them back.' onClick={() => editor.setFrameLengthMode('push')}>
++        <Icon name='push' />
++      </button>
++      <button className={'tt-mini' + (mode === 'overwrite' ? ' tt-on' : '')} aria-pressed={mode === 'overwrite'} aria-label='Overwrite'
++        title='Overwrite: longer frames cover the next frames. Shorter frames leave a gap.' onClick={() => editor.setFrameLengthMode('overwrite')}>
++        <Icon name='overwrite' />
++      </button>
++    </div>
++  );
 +}
 +
 +export default function TimelineTools (props) {
@@ -6166,7 +6416,6 @@ index 0000000..04c8d57
 +  }, [menu]);
 +  if (!editor || !editor.changeFrameLength) return null;
 +
-+  let mode = editor.getFrameLengthMode();
 +  let loopFrame = editor.getSelectedLoopFrame();
 +  let loopEdit = editor.getLoopEdit();
 +  let editing = loopEdit ? { identifier: loopEdit.identifier } : editor.getFocusedLoop();
@@ -6187,6 +6436,57 @@ index 0000000..04c8d57
 +    </button>
 +  );
 +
++  let tl = editor.project.root.timeline;
++  let renderTool = (id) => {
++    if (id === 'range') return (
++      <div className='tt-group' role='group' aria-label='Play range'>
++        <B icon='start' label='Start here' title='Playing starts at the playhead (or type a frame number)' onClick={editor.setPlayRangeStart} />
++        <RangeBox value={range && range.start} placeholder='1' label='Start frame' onSet={v => editor.setPlayRangeValues(v, range ? range.end : null)} />
++        <RangeBox value={range && range.end} placeholder={String(Math.max(1, tl.length))} label='End frame' onSet={v => editor.setPlayRangeValues(range ? range.start : null, v)} />
++        <B icon='end' label='End here' title='Playing ends at the playhead (or type a frame number)' onClick={editor.setPlayRangeEnd} />
++        {range && <button className='tt-btn tt-clear' aria-label={'Clear the play range ' + range.start + ' to ' + range.end}
++          title='Play the whole animation again' onClick={editor.clearPlayRange}>✕</button>}
++      </div>);
++    if (id === 'repeat') return (
++      <div className='tt-group'>
++        <B icon={repeat ? 'repeat' : 'once'} on={repeat} label={repeat ? 'Repeat' : 'Once'}
++          title={repeat ? 'Playing starts over at the end. Tap to play once.' : 'Playing stops at the end. Tap to repeat.'}
++          onClick={editor.togglePlayRepeat} />
++      </div>);
++    if (id === 'guides') return (
++      <div className='tt-group'>
++        <B icon='guide' on={guides} label={guides ? 'Guides show' : 'Guides hidden'}
++          title={guides ? 'Guide layers show when you press play. Tap to hide them. Exports always leave them out.' : 'Guide layers are hidden when you press play. Tap to show them.'}
++          onClick={editor.toggleGuidesWhilePlaying} />
++      </div>);
++    if (id === 'length') return (
++      <div className='tt-group' role='group' aria-label='Frame length'>
++        <B icon='minus' label='Shorter' title='One frame shorter' onClick={() => editor.changeFrameLength(-1)} />
++        <B icon='plus' label='Longer' title='One frame longer' onClick={() => editor.changeFrameLength(1)} />
++      </div>);
++    if (id === 'duplicate') return (
++      <div className='tt-group'><B icon='duplicate' label='Duplicate' title='Copy the selected frames and put the copy right after them' onClick={editor.duplicateFrames} /></div>);
++    if (id === 'reverse') return (
++      <div className='tt-group'><B icon='reverse' label='Reverse' title='Play the selected frames backwards' onClick={editor.reverseFrames} /></div>);
++    if (id === 'loop' && !editing) return (
++      <div className='tt-group' role='group' aria-label='Loop'>
++        {loopFrame ? <>
++          <B icon='edit' cls='tt-loop' label='Edit loop' title='Open the loop right here to change its drawings' onClick={() => editor.editSelectedLoop()} />
++          <B icon='loop' cls='tt-loop' label='+1 loop' text={prefs.names ? null : '+1'} title='Play the loop one more time' onClick={editor.repeatSelectedLoop} />
++          <B icon='toEnd' cls='tt-loop' label='Loop to end' title='Keep looping until the end of the animation' onClick={editor.loopSelectedToEnd} />
++        </> : <B icon='loop' cls='tt-loop' label='Loop frames' title='Put the selected frames in a loop' onClick={editor.makeLoopFromSelectedFrames} />}
++      </div>);
++    return null;
++  };
++
++  let move = (id, dir) => {
++    let order = prefs.order.slice();
++    let i = order.indexOf(id), j = i + dir;
++    if (j < 0 || j >= order.length) return;
++    order[i] = order[j]; order[j] = id;
++    update(Object.assign({}, prefs, { order: order }));
++  };
++
 +  let openMenu = () => {
 +    if (menu) { setMenu(null); return; }
 +    let r = moreRef.current.getBoundingClientRect();
@@ -6201,57 +6501,7 @@ index 0000000..04c8d57
 +          <B cls='tt-done' label='Done' text='Done' title='Put the loop back together' onClick={() => editor.finishEditingLoop()} />
 +        </div>}
 +
-+      {(shown('range') || shown('repeat') || shown('guides')) &&
-+        <div className='tt-group' role='group' aria-label='Playing'>
-+          {shown('range') && <>
-+            <B icon='start' label='Start here' title='Playing starts at the playhead' onClick={editor.setPlayRangeStart} />
-+            <B icon='end' label='End here' title='Playing ends at the playhead' onClick={editor.setPlayRangeEnd} />
-+            {range &&
-+              <button className='tt-btn tt-chip' title='Play the whole animation again'
-+                aria-label={'Clear the play range ' + range.start + ' to ' + range.end} onClick={editor.clearPlayRange}>
-+                {range.start}–{range.end} ✕
-+              </button>}
-+          </>}
-+          {shown('repeat') &&
-+            <B icon={repeat ? 'repeat' : 'once'} on={repeat} label={repeat ? 'Repeat' : 'Once'}
-+              title={repeat ? 'Playing starts over at the end. Tap to play once.' : 'Playing stops at the end. Tap to repeat.'}
-+              onClick={editor.togglePlayRepeat} />}
-+          {shown('guides') &&
-+            <B icon={guides ? 'eye' : 'eyeOff'} on={guides} label={guides ? 'Guides show' : 'Guides hidden'}
-+              title={guides ? 'Guide layers show when you press play. Tap to hide them. Exports always leave them out.' : 'Guide layers are hidden when you press play. Tap to show them.'}
-+              onClick={editor.toggleGuidesWhilePlaying} />}
-+        </div>}
-+
-+      {(shown('length') || shown('mode')) &&
-+        <div className='tt-group' role='group' aria-label='Frame length'>
-+          {shown('length') && <>
-+            <B icon='minus' label='Shorter' title='One frame shorter' onClick={() => editor.changeFrameLength(-1)} />
-+            <B icon='plus' label='Longer' title='One frame longer' onClick={() => editor.changeFrameLength(1)} />
-+          </>}
-+          {shown('mode') &&
-+            <span className='tt-seg'>
-+              <B icon='push' on={mode === 'push'} label='Push' title='Longer frames push the next frames along. Shorter frames pull them back.'
-+                onClick={() => editor.setFrameLengthMode('push')} />
-+              <B icon='overwrite' on={mode === 'overwrite'} label='Overwrite' title='Longer frames cover the next frames. Shorter frames leave a gap.'
-+                onClick={() => editor.setFrameLengthMode('overwrite')} />
-+            </span>}
-+        </div>}
-+
-+      {(shown('inbetween') || shown('duplicate') || shown('reverse')) &&
-+        <div className='tt-group' role='group' aria-label='Frames'>
-+          {shown('inbetween') && <B icon='inbetween' label='In-between' title='Add a blank drawing halfway to the next drawing, with onion skin on' onClick={editor.addInbetween} />}
-+          {shown('duplicate') && <B icon='duplicate' label='Duplicate' title='Copy the selected frames and put the copy right after them' onClick={editor.duplicateFrames} />}
-+          {shown('reverse') && <B icon='reverse' label='Reverse' title='Play the selected frames backwards' onClick={editor.reverseFrames} />}
-+        </div>}
-+
-+      {shown('loop') && !editing &&
-+        <div className='tt-group' role='group' aria-label='Loop'>
-+          {loopFrame ? <>
-+            <B icon='edit' cls='tt-loop' label='Edit loop' title='Open the loop right here to change its drawings' onClick={() => editor.editSelectedLoop()} />
-+            <B icon='loop' cls='tt-loop' label='+1 loop' text={prefs.names ? null : '+1'} title='Play the loop one more time' onClick={editor.repeatSelectedLoop} />
-+            <B icon='toEnd' cls='tt-loop' label='Loop to end' title='Keep looping until the end of the animation' onClick={editor.loopSelectedToEnd} />
-+          </> : <B icon='loop' cls='tt-loop' label='Loop frames' title='Put the selected frames in a loop' onClick={editor.makeLoopFromSelectedFrames} />}
-+        </div>}
++      {prefs.order.filter(shown).map(id => <React.Fragment key={id}>{renderTool(id)}</React.Fragment>)}
 +
 +      <span ref={moreRef} className='tt-group'>
 +        <button className={'tt-btn tt-more' + (menu ? ' tt-on' : '')} aria-label='Choose tools' title='Choose which tools show' aria-expanded={!!menu} onClick={openMenu}>
@@ -6263,28 +6513,35 @@ index 0000000..04c8d57
 +        <div className='tt-menu' style={{ right: menu.right, bottom: menu.bottom }} onPointerDown={stop} role='dialog' aria-label='Timeline tools'>
 +          <div className='tt-menu-title'>Timeline tools</div>
 +          <label className='tt-menu-row tt-menu-names'>
-+            <input type='checkbox' checked={prefs.names} onChange={e => update({ hidden: prefs.hidden, names: e.target.checked })} />
++            <input type='checkbox' checked={prefs.names} onChange={e => update(Object.assign({}, prefs, { names: e.target.checked }))} />
 +            <span>Show names on the buttons</span>
 +          </label>
-+          <div className='tt-menu-sub'>Show these tools</div>
-+          {TOOLS.map(t =>
-+            <label key={t.id} className='tt-menu-row'>
-+              <input type='checkbox' checked={shown(t.id)}
-+                onChange={e => update({ names: prefs.names, hidden: e.target.checked ? prefs.hidden.filter(h => h !== t.id) : prefs.hidden.concat([t.id]) })} />
-+              <span className='tt-menu-icon'><Icon name={{ range: 'start', repeat: 'repeat', guides: 'eye', length: 'plus', mode: 'push', inbetween: 'inbetween', duplicate: 'duplicate', reverse: 'reverse', loop: 'loop' }[t.id]} /></span>
-+              <span>{t.name}</span>
-+            </label>)}
-+          <button className='tt-menu-reset' onClick={() => update({ hidden: [], names: false })}>Show everything</button>
++          <div className='tt-menu-sub'>Show and arrange the tools</div>
++          {prefs.order.map((id, n) => {
++            let t = TOOLS.find(x => x.id === id);
++            return (
++              <div key={id} className='tt-menu-row'>
++                <label className='tt-menu-check'>
++                  <input type='checkbox' checked={shown(id)}
++                    onChange={e => update(Object.assign({}, prefs, { hidden: e.target.checked ? prefs.hidden.filter(h => h !== id) : prefs.hidden.concat([id]) }))} />
++                  <span className='tt-menu-icon'><Icon name={t.icon} /></span>
++                  <span>{t.name}</span>
++                </label>
++                <button className='tt-menu-move' aria-label={'Move ' + t.name + ' left'} title='Move left' disabled={n === 0} onClick={() => move(id, -1)}>‹</button>
++                <button className='tt-menu-move' aria-label={'Move ' + t.name + ' right'} title='Move right' disabled={n === prefs.order.length - 1} onClick={() => move(id, 1)}>›</button>
++              </div>);
++          })}
++          <button className='tt-menu-reset' onClick={() => update({ hidden: [], names: false, order: DEFAULT_ORDER.slice() })}>Reset to default</button>
 +        </div>, document.body)}
 +    </div>
 +  );
 +}
 diff --git a/src/Editor/Panels/Timeline/TimelineTools/_timelinetools.scss b/src/Editor/Panels/Timeline/TimelineTools/_timelinetools.scss
 new file mode 100644
-index 0000000..bda5dd8
+index 0000000..6c450fa
 --- /dev/null
 +++ b/src/Editor/Panels/Timeline/TimelineTools/_timelinetools.scss
-@@ -0,0 +1,117 @@
+@@ -0,0 +1,178 @@
 +@import 'Editor/_wickbrand.scss';
 +
 +#animation-timeline-container { position: relative; }
@@ -6363,7 +6620,55 @@ index 0000000..bda5dd8
 +}
 +.tt-done { background: $editor-green-highlight; color: $editor-primary; padding: 0 10px; &:hover { background: $editor-green-highlight; } }
 +
-+.tt-chip { background: rgba(30, 226, 154, 0.25); color: $editor-modal-text-white; padding: 0 7px; }
++.tt-clear { min-width: 20px; padding: 0 4px; font-size: 11px; opacity: 0.8; }
++
++/* Play range number boxes */
++.tt-range-box {
++  width: 30px;
++  height: 22px;
++  margin: 0 1px;
++  padding: 0 2px;
++  border: 1px solid rgba(255, 255, 255, 0.15);
++  border-radius: 5px;
++  background: rgba(0, 0, 0, 0.35);
++  color: $editor-modal-text-white;
++  font: bold 12px 'Nunito Sans', sans-serif;
++  text-align: center;
++  -webkit-user-select: text;
++  user-select: text;
++  &::placeholder { color: rgba(255, 255, 255, 0.35); }
++  &:focus { outline: none; border-color: $editor-green-highlight; }
++}
++
++/* Push / Overwrite at the bottom left, next to the gap fill and frame size buttons */
++.tt-mode-bottom {
++  position: absolute;
++  left: 76px;
++  bottom: 31px;
++  z-index: 2;
++  display: flex;
++  gap: 1px;
++  padding: 1px;
++  border-radius: 5px;
++  background: rgba(255, 255, 255, 0.06);
++}
++.tt-mini {
++  width: 28px;
++  height: 17px;
++  padding: 0;
++  display: inline-flex;
++  align-items: center;
++  justify-content: center;
++  border: none;
++  border-radius: 4px;
++  background: transparent;
++  color: $editor-modal-text-white;
++  cursor: pointer;
++  touch-action: manipulation;
++  -webkit-tap-highlight-color: transparent;
++  .tt-svg { width: 14px; height: 14px; }
++  &.tt-on { background: $editor-green-highlight; color: $editor-primary; }
++}
 +
 +/* ⋯ menu */
 +.tt-menu {
@@ -6388,6 +6693,19 @@ index 0000000..bda5dd8
 +  margin: 0;
 +  cursor: pointer;
 +  input { width: 18px; height: 18px; margin: 0; accent-color: $editor-green-highlight; }
++}
++.tt-menu-check { display: flex; align-items: center; gap: 8px; flex: 1; margin: 0; cursor: pointer; }
++.tt-menu-move {
++  width: 30px;
++  height: 28px;
++  border: none;
++  border-radius: 6px;
++  background: rgba(255, 255, 255, 0.1);
++  color: inherit;
++  font-size: 18px;
++  line-height: 1;
++  cursor: pointer;
++  &:disabled { opacity: 0.25; cursor: default; }
 +}
 +.tt-menu-icon { display: inline-flex; width: 18px; justify-content: center; opacity: 0.85; }
 +.tt-menu-reset {
@@ -7019,10 +7337,10 @@ index 836a3cd..79943e5 100644
        }
  
 diff --git a/src/index.css b/src/index.css
-index 0315e0e..842ac09 100644
+index 0315e0e..3a24ccc 100644
 --- a/src/index.css
 +++ b/src/index.css
-@@ -40,3 +40,15 @@ body {
+@@ -40,3 +40,29 @@ body {
    width: 100%;
    height: 100%;
  }
@@ -7037,6 +7355,20 @@ index 0315e0e..842ac09 100644
 +  -webkit-user-select: text;
 +  user-select: text;
 +  -webkit-touch-callout: default;
++}
++
++/* Button names shown when an Apple Pencil hovers */
++.hover-label {
++  display: none;
++  position: fixed;
++  z-index: 2000;
++  padding: 4px 8px;
++  border-radius: 6px;
++  background: rgba(20, 20, 20, 0.92);
++  color: #fff;
++  font: 600 12px 'Nunito Sans', sans-serif;
++  pointer-events: none;
++  white-space: nowrap;
 +}
 diff --git a/src/resources/timeline-icons/guide-layer.svg b/src/resources/timeline-icons/guide-layer.svg
 new file mode 100644
