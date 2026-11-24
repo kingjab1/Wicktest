@@ -24,6 +24,23 @@
     animation: float .6s ease-in-out infinite alternate;
 }
 
+.flashy svg { width: 100%; height: 100%; overflow: visible; }
+
+.powered-by {
+    position: absolute;
+    right: 16px;
+    bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font: bold 14px 'Nunito Sans', Nunito, sans-serif;
+    color: #fff;
+    opacity: 0.9;
+}
+
+.powered-by-ghost { display: inline-block; width: 26px; height: 26px; }
+.powered-by-ghost svg { width: 100%; height: 100%; }
+
 .flashy-shadow {
     position: absolute;
     top: calc(50% + 70px);
