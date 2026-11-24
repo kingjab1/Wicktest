@@ -51979,6 +51979,8 @@ Wick.Project = class extends Wick.Base {
 
 
   get canDraw() {
+    // The editor can say no too (for example, on a loop that isn't open for editing).
+    if (Wick.Project.drawBlocker && Wick.Project.drawBlocker(this)) return false;
     return !this.activeLayer.locked && !this.activeLayer.hidden;
   }
   /**
