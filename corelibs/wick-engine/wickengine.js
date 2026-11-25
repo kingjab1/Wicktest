@@ -59498,6 +59498,8 @@ Wick.Tools.Cursor = class extends Wick.Tool {
 
         this._widget.finishTransformation();
 
+        if (Wick.onSelectionTransformed && this._widget.lastTransformMatrix) Wick.onSelectionTransformed(this._widget.lastTransformMatrix);
+        this._widget.lastTransformMatrix = null;
         this.fireEvent({
           eventName: 'canvasModified',
           actionName: 'cursorDrag'
@@ -62004,6 +62006,19 @@ class SelectionWidget {
     if (!this._currentTransformation) return;
 
     this._ghost.remove();
+    // Tell the editor exactly how things moved, so it can move other frames the same way.
+
+    var m = new paper.Matrix();
+
+    if (this.currentTransformation === 'translate') {
+      m.translate(this._ghost.position.subtract(this._ghost.data.initialPosition));
+    } else if (this.currentTransformation === 'scale') {
+      m.rotate(this.boxRotation, this.pivot).scale(this._ghost.data.scale, this.pivot).rotate(-this.boxRotation, this.pivot);
+    } else if (this.currentTransformation === 'rotate') {
+      m.rotate(this._ghost.rotation, this.pivot);
+    }
+
+    this.lastTransformMatrix = m;
 
     if (this.currentTransformation === 'translate') {
       var d = this._ghost.position.subtract(this._ghost.data.initialPosition);

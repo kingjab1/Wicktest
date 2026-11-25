@@ -566,7 +566,7 @@ index 0000000..d4e41bc
 +    }
 +};
 diff --git a/engine/src/tools/Cursor.js b/engine/src/tools/Cursor.js
-index c7bb275..965b117 100644
+index c7bb275..234c04c 100644
 --- a/engine/src/tools/Cursor.js
 +++ b/engine/src/tools/Cursor.js
 @@ -114,6 +114,8 @@ Wick.Tools.Cursor = class extends Wick.Tool {
@@ -587,6 +587,15 @@ index c7bb275..965b117 100644
              // Double clicked the canvas, leave the current focus.
              if (this.project.focusTimelineOfParentClip()) {
                  this.fireEvent({eventName: 'canvasModified', actionName: 'cursorFocusTimelineParent'});
+@@ -183,6 +187,8 @@ Wick.Tools.Cursor = class extends Wick.Tool {
+                 this.__isDragging = false;
+                 this.project.tryToAutoCreateTween();
+                 this._widget.finishTransformation();
++                if (Wick.onSelectionTransformed && this._widget.lastTransformMatrix) Wick.onSelectionTransformed(this._widget.lastTransformMatrix);
++                this._widget.lastTransformMatrix = null;
+                 this.fireEvent({eventName: 'canvasModified', actionName: 'cursorDrag'});
+             }
+         }
 diff --git a/engine/src/view/View.Timeline.js b/engine/src/view/View.Timeline.js
 index 7cb9e16..7bf09a0 100644
 --- a/engine/src/view/View.Timeline.js
@@ -601,6 +610,28 @@ index 7cb9e16..7bf09a0 100644
              return layer.project.isPublished || !layer.hidden;
          }).reverse();
  
+diff --git a/engine/src/view/paper-ext/Paper.SelectionWidget.js b/engine/src/view/paper-ext/Paper.SelectionWidget.js
+index a668396..aa6e09e 100644
+--- a/engine/src/view/paper-ext/Paper.SelectionWidget.js
++++ b/engine/src/view/paper-ext/Paper.SelectionWidget.js
+@@ -272,6 +272,17 @@ class SelectionWidget {
+ 
+         this._ghost.remove();
+ 
++        // Tell the editor exactly how things moved, so it can move other frames the same way.
++        var m = new paper.Matrix();
++        if(this.currentTransformation === 'translate') {
++            m.translate(this._ghost.position.subtract(this._ghost.data.initialPosition));
++        } else if(this.currentTransformation === 'scale') {
++            m.rotate(this.boxRotation, this.pivot).scale(this._ghost.data.scale, this.pivot).rotate(-this.boxRotation, this.pivot);
++        } else if(this.currentTransformation === 'rotate') {
++            m.rotate(this._ghost.rotation, this.pivot);
++        }
++        this.lastTransformMatrix = m;
++
+         if(this.currentTransformation === 'translate') {
+             var d = this._ghost.position.subtract(this._ghost.data.initialPosition);
+             this.translateSelection(d);
 diff --git a/package.json b/package.json
 index 46a1e31..2c2aaf0 100644
 --- a/package.json
@@ -2296,7 +2327,7 @@ index 0000000..c11d425
 +}
 \ No newline at end of file
 diff --git a/src/Editor/Editor.jsx b/src/Editor/Editor.jsx
-index f4c1ad4..a561642 100644
+index f4c1ad4..a7c660c 100644
 --- a/src/Editor/Editor.jsx
 +++ b/src/Editor/Editor.jsx
 @@ -18,6 +18,9 @@
@@ -2332,7 +2363,7 @@ index f4c1ad4..a561642 100644
      // Initialize "live" engine state
      this.project = new window.Wick.Project();
      this.attachErrorHandlers();
-@@ -264,6 +274,42 @@ class Editor extends EditorCore {
+@@ -264,6 +274,44 @@ class Editor extends EditorCore {
  
    componentDidMount = () => {
      console.log("Project Mounted");
@@ -2340,6 +2371,8 @@ index f4c1ad4..a561642 100644
 +    window.Wick.Clip.onEditLoop = (clip) => !!(this.getLoopInFrame(clip.parentFrame) && this.editSelectedLoop(clip));
 +    installCanvasGestures(this);
 +    installHoverLabels();
++    // The select tool tells us how it moved things (for "Transform: selected frames").
++    window.Wick.onSelectionTransformed = (m) => this._applyTransformToSelectedFrames(m);
 +    loadSiteIcons(this);
 +    // Buttons drawn inside the timeline (guides toggle, push/overwrite) talk to the editor through these.
 +    window.Wick.GUIElement.editorHooks = {
@@ -2375,7 +2408,7 @@ index f4c1ad4..a561642 100644
      this.hidePreloader();
      this.onWindowResize();
      if(!this.tryToParseProjectURL()) {
-@@ -276,6 +322,7 @@ class Editor extends EditorCore {
+@@ -276,6 +324,7 @@ class Editor extends EditorCore {
    componentDidUpdate = (prevProps, prevState) => {
      if(this.state.previewPlaying && !prevState.previewPlaying) {
        this.project.view.canvas.focus();
@@ -2383,7 +2416,7 @@ index f4c1ad4..a561642 100644
        this.project.play({
          onError: (error) => {
            if (error) {
-@@ -290,10 +337,11 @@ class Editor extends EditorCore {
+@@ -290,10 +339,11 @@ class Editor extends EditorCore {
          },
          onAfterTick: () => {
            //this.project.view.render();
@@ -2396,10 +2429,13 @@ index f4c1ad4..a561642 100644
          },
        });
      }
-@@ -670,6 +718,13 @@ class Editor extends EditorCore {
+@@ -670,6 +720,16 @@ class Editor extends EditorCore {
        this.project.history.pushState(window.Wick.History.StateType.ONLY_VISIBLE_OBJECTS, options.actionName);
      }
  
++    // Remember the frames picked in the timeline, for "Transform: selected frames"
++    this._rememberTransformFrames();
++
 +    // Keep the purple "editing loop" band on the timeline up to date
 +    this.getLoopEdit();
 +
@@ -2410,7 +2446,7 @@ index f4c1ad4..a561642 100644
      // Render engine
      this.project.view.render();
      this.project.guiElement.draw();
-@@ -928,6 +983,12 @@ class Editor extends EditorCore {
+@@ -928,6 +988,12 @@ class Editor extends EditorCore {
      return (
        <DndProvider backend={HTML5Backend}>
        <EditorWrapper editor={this}>
@@ -2423,7 +2459,7 @@ index f4c1ad4..a561642 100644
          {/* Menu Bar */}
  
          <div id="menu-bar-container">
-@@ -1083,6 +1144,7 @@ class Editor extends EditorCore {
+@@ -1083,6 +1149,7 @@ class Editor extends EditorCore {
                            addTweenKeyframe={this.addTweenKeyframe}
                            onRef={ref => this.timelineComponent = ref}
                            dragSoundOntoTimeline={this.dragSoundOntoTimeline}
@@ -2431,7 +2467,7 @@ index f4c1ad4..a561642 100644
  
                            getToolSetting={this.getToolSetting}
                            setToolSetting={this.setToolSetting}
-@@ -1129,6 +1191,7 @@ class Editor extends EditorCore {
+@@ -1129,6 +1196,7 @@ class Editor extends EditorCore {
                            addTweenKeyframe={this.addTweenKeyframe}
                            onRef={ref => this.timelineComponent = ref}
                            dragSoundOntoTimeline={this.dragSoundOntoTimeline}
@@ -2440,7 +2476,7 @@ index f4c1ad4..a561642 100644
                        </DockedPanel>
                      </ReflexElement>
 diff --git a/src/Editor/EditorCore.jsx b/src/Editor/EditorCore.jsx
-index 0383385..e95039a 100644
+index 0383385..3a84ff7 100644
 --- a/src/Editor/EditorCore.jsx
 +++ b/src/Editor/EditorCore.jsx
 @@ -17,12 +17,14 @@
@@ -2654,7 +2690,7 @@ index 0383385..e95039a 100644
      });
  
      if(error) {
-@@ -1707,6 +1880,694 @@ class EditorCore extends Component {
+@@ -1707,6 +1880,751 @@ class EditorCore extends Component {
      return this.project.hasFont(font);
    }
  
@@ -3146,6 +3182,63 @@ index 0383385..e95039a 100644
 +    frame.end = target;
 +    if (next && target < last) this.toast('The loop stops at frame ' + target + ', right before the next drawing on this layer.', 'info');
 +    this.projectDidChange({ actionName: 'Loop To End' });
++  }
++
++  /* ---------- Select tool: transform this frame, or every selected frame ---------- */
++
++  getTransformScope = () => {
++    try { return window.localStorage.getItem('transformScope') === 'frames' ? 'frames' : 'frame'; } catch (e) { return this._transformScope || 'frame'; }
++  }
++
++  setTransformScope = (scope) => {
++    try { window.localStorage.setItem('transformScope', scope); } catch (e) { this._transformScope = scope; }
++    if (scope === 'frames' && !this.getTransformFrames().length) {
++      this.toast('Now select the frames in the timeline (double-tap a frame and drag), then move the drawing on the canvas.', 'info');
++    }
++    this.forceUpdate();
++  }
++
++  /** The frames picked in the timeline most recently (2 or more). Stays remembered after you tap the canvas. */
++  getTransformFrames = () => {
++    let frames = (this._transformFrames || []).filter(f => f.parentLayer && f.project === this.project);
++    this._transformFrames = frames;
++    return frames;
++  }
++
++  /** Remember the timeline's frame selection (called after every change). */
++  _rememberTransformFrames = () => {
++    let frames = this.project.selection.getSelectedObjects('Frame');
++    if (frames.length >= 2) this._transformFrames = frames.slice();
++    else if (frames.length === 1) this._transformFrames = null;
++  }
++
++  /** The select tool moved, scaled or turned something: do the same to everything in the other selected frames. */
++  _applyTransformToSelectedFrames = (m) => {
++    if (this.getTransformScope() !== 'frames') return;
++    let frames = this.getTransformFrames();
++    if (!frames.length) return;
++    let paper = window.paper;
++    let onCanvas = new Set(this.project.selection.getSelectedObjects('Canvas').map(o => o.parentFrame));
++    let parts = m.decompose();
++    frames.filter(f => !onCanvas.has(f)).forEach(f => {
++      f.paths.forEach(path => {
++        if (!path.view.item) path.view.render();
++        if (!path.view.item) return;
++        let item = path.view.item.clone({ insert: false });
++        item.transform(m);
++        path.json = item.exportJSON({ asString: false });
++      });
++      f.clips.forEach(c => {
++        let t = c.transformation;
++        let pt = m.transform(new paper.Point(t.x, t.y));
++        t.x = pt.x;
++        t.y = pt.y;
++        t.rotation += parts.rotation || 0;
++        t.scaleX *= parts.scaling ? parts.scaling.x : 1;
++        t.scaleY *= parts.scaling ? parts.scaling.y : 1;
++        c.transformation = t;
++      });
++    });
 +  }
 +
 +  /* ---------- Developer: drawing an icon right here ---------- */
@@ -7486,6 +7579,59 @@ index 0000000..6c450fa
 +  font-weight: bold;
 +  cursor: pointer;
 +}
+diff --git a/src/Editor/Panels/Toolbox/ToolSettings/ToolSettings.jsx b/src/Editor/Panels/Toolbox/ToolSettings/ToolSettings.jsx
+index 96051eb..1191317 100644
+--- a/src/Editor/Panels/Toolbox/ToolSettings/ToolSettings.jsx
++++ b/src/Editor/Panels/Toolbox/ToolSettings/ToolSettings.jsx
+@@ -61,8 +61,21 @@ class ToolSettings extends Component {
+ 
+   // Selection contents and properties
+   renderCursorSettings = () => {
++    let ed = window.editor;
++    if (!ed || !ed.getTransformScope) return <div className='settings-input-container'></div>;
++    let scope = ed.getTransformScope();
++    let n = ed.getTransformFrames().length;
+     return (
+-      <div className='settings-input-container'></div>
++      <div className='settings-input-container'>
++        <div className='transform-scope' role='group' aria-label='What the select tool moves'>
++          <span className='transform-scope-label'>Transform</span>
++          <button className={'transform-scope-btn' + (scope === 'frame' ? ' transform-scope-on' : '')} aria-pressed={scope === 'frame'}
++            title='Moving, scaling and turning only changes the frame you see' onClick={() => ed.setTransformScope('frame')}>This frame</button>
++          <button className={'transform-scope-btn' + (scope === 'frames' ? ' transform-scope-on' : '')} aria-pressed={scope === 'frames'}
++            title='Moving, scaling and turning changes every frame selected in the timeline the same way'
++            onClick={() => ed.setTransformScope('frames')}>Selected frames{n ? ' (' + n + ')' : ''}</button>
++        </div>
++      </div>
+     );
+   }
+ 
+diff --git a/src/Editor/Panels/Toolbox/ToolSettings/_toolsettings.scss b/src/Editor/Panels/Toolbox/ToolSettings/_toolsettings.scss
+index d54f414..3522181 100644
+--- a/src/Editor/Panels/Toolbox/ToolSettings/_toolsettings.scss
++++ b/src/Editor/Panels/Toolbox/ToolSettings/_toolsettings.scss
+@@ -24,3 +24,21 @@ $setting-height: 70px;
+   align-items: center;
+   margin: 1px;
+ }
++
++/* Select tool: transform this frame or every selected frame */
++.transform-scope { display: flex; align-items: center; gap: 2px; height: 30px; }
++.transform-scope-label { font-size: 13px; font-weight: bold; color: #ccc; margin-right: 6px; }
++.transform-scope-btn {
++  height: 28px;
++  padding: 0 10px;
++  border: none;
++  border-radius: 6px;
++  background: rgba(255, 255, 255, 0.08);
++  color: #eee;
++  font-size: 13px;
++  font-weight: bold;
++  white-space: nowrap;
++  cursor: pointer;
++  touch-action: manipulation;
++}
++.transform-scope-on { background: #1EE29A; color: #222; }
 diff --git a/src/Editor/Util/ToolIcon/ToolIcon.jsx b/src/Editor/Util/ToolIcon/ToolIcon.jsx
 index 1ff89a2..28be8dc 100644
 --- a/src/Editor/Util/ToolIcon/ToolIcon.jsx
