@@ -65343,7 +65343,23 @@ Wick.GUIElement.Frame = class extends Wick.GUIElement {
   }
 
   onMouseDown(e) {
-    this._clickedEdge = this._mouseOverFrameEdge();
+    this._clickedEdge = this._mouseOverFrameEdge(); // Double tap a frame, then drag: select frames with a box (from this frame) instead of moving it.
+
+    // (Browsers send a pretend mouse click right after each finger tap: don't count that as a second tap.)
+    var now = Date.now();
+    var isTouch = !!(e && e.touches);
+    if (isTouch) Wick.GUIElement.Frame._lastTouch = now;
+    var echo = !isTouch && now - (Wick.GUIElement.Frame._lastTouch || 0) < 900;
+    var last = Wick.GUIElement.Frame._lastTap;
+    this._boxSelect = !echo && !!(last && last.frame === this.model && now - last.time < 450 && !this._clickedEdge);
+    if (!echo) Wick.GUIElement.Frame._lastTap = this._boxSelect ? null : { frame: this.model, time: now };
+
+    if (this._boxSelect) {
+      var container = this.model.parentTimeline.guiElement.framesContainer;
+      container._selectionBox = new Wick.GUIElement.SelectionBox(this.model.parentTimeline);
+      this.projectWasSoftModified();
+      return;
+    }
     var playheadPosition = this.model.start + Math.floor(this.localMouse.x / this.gridCellWidth);
     this.model.project.activeTimeline.playheadPosition = playheadPosition;
 
@@ -65364,6 +65380,11 @@ Wick.GUIElement.Frame = class extends Wick.GUIElement {
   }
 
   onMouseDrag(e) {
+    if (this._boxSelect) {
+      this.model.parentTimeline.guiElement.framesContainer.onMouseDrag(e);
+      return;
+    }
+
     if (!this._ghost) {
       var edge = this._clickedEdge;
 
@@ -65376,6 +65397,13 @@ Wick.GUIElement.Frame = class extends Wick.GUIElement {
   }
 
   onMouseUp(e) {
+    if (this._boxSelect) {
+      this._boxSelect = false;
+      var container = this.model.parentTimeline.guiElement.framesContainer;
+      if (container._selectionBox) container.onMouseUp(e);
+      return;
+    }
+
     if (this._ghost) {
       this._ghost.finish();
 
@@ -65630,6 +65658,37 @@ Wick.GUIElement.FrameGhost = class extends Wick.GUIElement.Ghost {
       frame.start += this.moveCols;
       frame.end += this.moveCols;
     });
+
+    // Push mode (set in the editor): frames in the way move along instead of being covered.
+    var pushing = Wick.GUIElement.editorHooks && Wick.GUIElement.editorHooks.getFrameMode() === 'push';
+    if (pushing) {
+        var byLayer = {};
+        this._frames.forEach(frame => {
+        var index = frame._originalLayerIndex + this.moveRows;
+        (byLayer[index] = byLayer[index] || []).push({ start: frame.start, end: frame.end });
+        });
+        Object.keys(byLayer).forEach(index => {
+        var layer = timeline.layers[index];
+        if (!layer) return;
+        var taken = byLayer[index];
+        layer.frames.slice().sort((a, b) => a.start - b.start).forEach(other => {
+            var moved = true;
+            while (moved) {
+            moved = false;
+            taken.forEach(t => {
+                if (other.start <= t.end && other.end >= t.start) {
+                var shift = t.end - other.start + 1;
+                other.start += shift;
+                other.end += shift;
+                moved = true;
+                }
+            });
+            }
+            taken.push({ start: other.start, end: other.end });
+        });
+        });
+    }
+
 
     this._frames.forEach(frame => {
       var layer = timeline.layers[frame._originalLayerIndex + this.moveRows];

@@ -184,7 +184,7 @@ index 539a21f..b7a5f00 100644
  
          ctx.restore();
 diff --git a/engine/src/gui/Frame.js b/engine/src/gui/Frame.js
-index c140aa3..95d7e24 100644
+index c140aa3..35c850b 100644
 --- a/engine/src/gui/Frame.js
 +++ b/engine/src/gui/Frame.js
 @@ -17,6 +17,22 @@
@@ -264,6 +264,97 @@ index c140aa3..95d7e24 100644
          } else if (this.model.sound) {
              // Sound waveform
  
+@@ -175,6 +231,22 @@ Wick.GUIElement.Frame = class extends Wick.GUIElement {
+     onMouseDown (e) {
+         this._clickedEdge = this._mouseOverFrameEdge();
+ 
++        // Double tap a frame, then drag: select frames with a box (from this frame) instead of moving it.
++        // (Browsers send a pretend mouse click right after each finger tap: don't count that as a second tap.)
++        var now = Date.now();
++        var isTouch = !!(e && e.touches);
++        if (isTouch) Wick.GUIElement.Frame._lastTouch = now;
++        var echo = !isTouch && now - (Wick.GUIElement.Frame._lastTouch || 0) < 900;
++        var last = Wick.GUIElement.Frame._lastTap;
++        this._boxSelect = !echo && !!(last && last.frame === this.model && now - last.time < 450 && !this._clickedEdge);
++        if (!echo) Wick.GUIElement.Frame._lastTap = this._boxSelect ? null : { frame: this.model, time: now };
++        if (this._boxSelect) {
++            var container = this.model.parentTimeline.guiElement.framesContainer;
++            container._selectionBox = new Wick.GUIElement.SelectionBox(this.model.parentTimeline);
++            this.projectWasSoftModified();
++            return;
++        }
++
+         var playheadPosition = this.model.start + Math.floor(this.localMouse.x / this.gridCellWidth);
+         this.model.project.activeTimeline.playheadPosition = playheadPosition;
+ 
+@@ -194,6 +266,11 @@ Wick.GUIElement.Frame = class extends Wick.GUIElement {
+     }
+ 
+     onMouseDrag (e) {
++        if (this._boxSelect) {
++            this.model.parentTimeline.guiElement.framesContainer.onMouseDrag(e);
++            return;
++        }
++
+         if(!this._ghost) {
+             var edge = this._clickedEdge;
+             if(edge) {
+@@ -205,6 +282,13 @@ Wick.GUIElement.Frame = class extends Wick.GUIElement {
+     }
+ 
+     onMouseUp (e) {
++        if (this._boxSelect) {
++            this._boxSelect = false;
++            var container = this.model.parentTimeline.guiElement.framesContainer;
++            if (container._selectionBox) container.onMouseUp(e);
++            return;
++        }
++
+         if(this._ghost) {
+             this._ghost.finish();
+             this._ghost = null;
+diff --git a/engine/src/gui/FrameGhost.js b/engine/src/gui/FrameGhost.js
+index 09a03cd..3452bd4 100644
+--- a/engine/src/gui/FrameGhost.js
++++ b/engine/src/gui/FrameGhost.js
+@@ -88,6 +88,37 @@ Wick.GUIElement.FrameGhost = class extends Wick.GUIElement.Ghost {
+             frame.start += this.moveCols;
+             frame.end += this.moveCols;
+         });
++
++        // Push mode (set in the editor): frames in the way move along instead of being covered.
++        var pushing = Wick.GUIElement.editorHooks && Wick.GUIElement.editorHooks.getFrameMode() === 'push';
++        if (pushing) {
++            var byLayer = {};
++            this._frames.forEach(frame => {
++                var index = frame._originalLayerIndex + this.moveRows;
++                (byLayer[index] = byLayer[index] || []).push({ start: frame.start, end: frame.end });
++            });
++            Object.keys(byLayer).forEach(index => {
++                var layer = timeline.layers[index];
++                if (!layer) return;
++                var taken = byLayer[index];
++                layer.frames.slice().sort((a, b) => a.start - b.start).forEach(other => {
++                    var moved = true;
++                    while (moved) {
++                        moved = false;
++                        taken.forEach(t => {
++                            if (other.start <= t.end && other.end >= t.start) {
++                                var shift = t.end - other.start + 1;
++                                other.start += shift;
++                                other.end += shift;
++                                moved = true;
++                            }
++                        });
++                    }
++                    taken.push({ start: other.start, end: other.end });
++                });
++            });
++        }
++
+         this._frames.forEach(frame => {
+             var layer = timeline.layers[frame._originalLayerIndex + this.moveRows];
+             delete frame._originalLayerIndex;
 diff --git a/engine/src/gui/Layer.js b/engine/src/gui/Layer.js
 index da230b1..aaa4fcc 100644
 --- a/engine/src/gui/Layer.js
