@@ -49584,6 +49584,7 @@ Wick.Layer = class extends Wick.Base {
     this.hidden = args.hidden === undefined ? false : args.hidden;
     this.name = args.name || null;
     this._isGuide = args.isGuide;
+    this.maskMode = args.maskMode;
   }
 
   _serialize(args) {
@@ -49592,6 +49593,7 @@ Wick.Layer = class extends Wick.Base {
     data.locked = this.locked;
     data.hidden = this.hidden;
     if (typeof this._isGuide === 'boolean') data.isGuide = this._isGuide;
+    if (this._maskMode) data.maskMode = this._maskMode;
     return data;
   }
 
@@ -49601,6 +49603,23 @@ Wick.Layer = class extends Wick.Base {
     this.locked = data.locked;
     this.hidden = data.hidden;
     this._isGuide = data.isGuide;
+    this.maskMode = data.maskMode;
+  }
+  /**
+   * How this layer works with the layers around it:
+   * null = normal, 'clip' = only shows where the layer below has paint,
+   * 'mask' = its shapes are a window for the 'masked' layers under it,
+   * 'masked' = only shows through the mask layer above.
+   * @type {string}
+   */
+
+
+  get maskMode() {
+    return this._maskMode || null;
+  }
+
+  set maskMode(maskMode) {
+    this._maskMode = ['clip', 'mask', 'masked'].indexOf(maskMode) !== -1 ? maskMode : null;
   }
   /**
    * Guide layers show while editing but are left out of exports (and, if the editor
@@ -58865,6 +58884,18 @@ Wick.Tool = class {
 
 };
 Wick.Tools = {};
+
+/**
+ * Is this paper item deeper than directly inside a frame's layer?
+ * (Frame layers can sit inside clipping and mask groups.)
+ */
+Wick.Tools.isNested = function (item) {
+  var parent = item.parent;
+  if (!parent || !parent.parent) return false;
+  var type = parent.parent.data && parent.parent.data.wickType;
+  return !(type === 'clipgroup' || type === 'maskgroup');
+};
+
 /*
  * Copyright 2020 WICKLETS LLC
  *
@@ -59528,10 +59559,10 @@ Wick.Tools.Cursor = class extends Wick.Tool {
       } // You can't select individual children in a group, you can only select the whole thing.
 
 
-      if (newHitResult.item.parent.parent) {
+      if (Wick.Tools.isNested(newHitResult.item)) {
         newHitResult.type = 'fill';
 
-        while (newHitResult.item.parent.parent) {
+        while (Wick.Tools.isNested(newHitResult.item)) {
           newHitResult.item = newHitResult.item.parent;
         }
       } // this.paper.js has two names for strokes+curves, we don't need that extra info
@@ -60702,10 +60733,10 @@ Wick.Tools.PathCursor = class extends Wick.Tool {
       } // You can't select individual children in a group, you can only select the whole thing.
 
 
-      if (newHitResult.item.parent.parent) {
+      if (Wick.Tools.isNested(newHitResult.item)) {
         newHitResult.type = 'fill';
 
-        while (newHitResult.item.parent.parent) {
+        while (Wick.Tools.isNested(newHitResult.item)) {
           newHitResult.item = newHitResult.item.parent;
         }
       } // this.paper.js has two names for strokes+curves, we don't need that extra info
@@ -61011,7 +61042,7 @@ Wick.Tools.Text = class extends Wick.Tool {
   onMouseMove(e) {
     super.onMouseMove(e);
 
-    if (e.item && e.item.className === 'PointText' && !e.item.parent.parent) {
+    if (e.item && e.item.className === 'PointText' && !Wick.Tools.isNested(e.item)) {
       this.hoveredOverText = e.item;
       this.setCursor('text');
     } else {
@@ -62442,10 +62473,22 @@ paper.SelectionBox = class {
   }
 
   _getSelectableLayers() {
-    var self = this;
-    return this.paper.project.layers.filter(layer => {
-      return !layer.locked;
-    });
+    var layers = []; // Clipping and mask groups hold frame layers inside them.
+
+    var add = layer => {
+      if (layer.locked) return;
+
+      if (layer.data.wickType === 'clipgroup' || layer.data.wickType === 'maskgroup') {
+        layer.children.forEach(child => {
+          if (child instanceof paper.Layer) add(child);
+        });
+      } else {
+        layers.push(layer);
+      }
+    };
+
+    this.paper.project.layers.forEach(add);
+    return layers;
   }
 
 };
@@ -63172,12 +63215,22 @@ Wick.View.Project = class extends Wick.View {
 
 
     this.model.focus.timeline.view.render();
-    this.model.focus.timeline.view.frameLayers.forEach(layer => {
-      this.paper.project.addLayer(layer);
-
+    var activateIfActive = layer => {
       if (this.model.project && this.model.project.activeFrame && !layer.locked && (layer.data.wickType === 'paths' || layer.data.wickType === 'clipsandpaths') && layer.data.wickUUID === this.model.project.activeFrame.uuid) {
         layer.activate();
+      } // Clipping and mask groups hold frame layers inside them.
+
+
+      if (layer.data.wickType === 'clipgroup' || layer.data.wickType === 'maskgroup') {
+        layer.children.forEach(child => {
+          if (child instanceof paper.Layer) activateIfActive(child);
+        });
       }
+    };
+
+    this.model.focus.timeline.view.frameLayers.forEach(layer => {
+      this.paper.project.addLayer(layer);
+      activateIfActive(layer);
     }); // Render selection
 
     this.model.selection.view.render();
@@ -63786,16 +63839,141 @@ Wick.View.Timeline = class extends Wick.View {
 
   render() {
     this.frameLayers = [];
-    var layersInRenderOrder = this.model.layers.filter(layer => {
+
+    var project = this.model.project;
+    var layers = this.model.layers; // top layer first
+    var n = layers.length;
+    var paperScope = this.paper;
+
+    var shows = layer => {
+      // Layers named "Notes" or "Annotations" are teaching notes: visible while editing,
+      // never in exported or published animations.
       if (layer.isLeftOutOfRender) return false;
       return layer.project.isPublished || !layer.hidden;
-    }).reverse();
-    layersInRenderOrder.forEach(layer => {
+    };
+    var mode = layers.map(layer => layer.maskMode);
+
+    // A clipping layer sticks to the first non-clipping layer under it.
+    var baseOf = i => {
+      for (var j = i + 1; j < n; j++) {
+        if (mode[j] !== 'clip') return mode[j] === 'mask' ? -1 : j;
+      }
+      return -1;
+    };
+
+    // A masked layer belongs to the nearest mask layer above it.
+    var maskOf = i => {
+      if (mode[i] !== 'masked') return -1;
+      for (var j = i - 1; j >= 0; j--) {
+        if (mode[j] === 'mask') return j;
+        if (mode[j] !== 'masked' && mode[j] !== 'clip') return -1;
+      }
+      return -1;
+    };
+
+    // Drawing things into their own little canvas first keeps clipping and masking
+    // from touching anything outside the group.
+    var makeGroup = kind => {
+      var group = new paperScope.Layer({insert: false});
+      group.blendMode = 'source-over';
+      group.data.wickType = kind;
+      return group;
+    };
+
+    var waiting = {}; // mask index -> [{onion, main}]
+
+    for (var i = n - 1; i >= 0; i--) {
+      var layer = layers[i];
+
+      if (mode[i] === 'clip' && baseOf(i) !== -1) continue;
+
+      if (mode[i] === 'mask') {
+        var group = waiting[i] || [];
+        var onionAll = [];
+        var mainAll = [];
+        group.forEach(g => {
+          onionAll = onionAll.concat(g.onion);
+          mainAll = mainAll.concat(g.main);
+        });
+
+        if (!shows(layer)) {
+          // A hidden mask lets everything under it show.
+          this.frameLayers = this.frameLayers.concat(onionAll, mainAll);
+          continue;
+        }
+
+        layer.view.render();
+        var maskFrameLayers = layer.view.activeFrameLayers;
+        this.frameLayers = this.frameLayers.concat(onionAll);
+
+        if (mainAll.length && maskFrameLayers.length) {
+          var maskGroup = makeGroup('maskgroup');
+          maskGroup.addChildren(mainAll);
+          var area = maskGroup.strokeBounds.expand(2);
+          maskFrameLayers.forEach(frameLayer => {
+            var shape = frameLayer.clone({insert: false});
+            shape.locked = true;
+            shape.opacity = 1;
+            shape.data = {wickType: 'maskshape'};
+            // A see-through box the size of the masked art, so everything outside the shape is cut away too.
+            shape.insertChild(0, new paperScope.Path.Rectangle({
+              rectangle: area,
+              fillColor: new paperScope.Color(0, 0, 0, 0),
+              insert: false,
+            }));
+            shape.blendMode = 'destination-in';
+            maskGroup.addChild(shape);
+          });
+          this.frameLayers.push(maskGroup);
+        }
+
+        // While you're working on the mask layer, see its shapes faintly on top so you can edit them.
+        var editingMask = !project.playing && !project.isPublished
+          && layer.parentClip && layer.parentClip.isFocus
+          && project.activeLayer === layer;
+        if (editingMask) {
+          this.frameLayers = this.frameLayers.concat(layer.view.onionSkinnedFramesLayers);
+          maskFrameLayers.forEach(frameLayer => {
+            frameLayer.opacity = 0.35;
+            this.frameLayers.push(frameLayer);
+          });
+        }
+        continue;
+      }
+
+      if (!shows(layer)) continue;
+
       layer.view.render();
-      this.frameLayers = this.frameLayers.concat(layer.view.onionSkinnedFramesLayers);
-      this.frameLayers = this.frameLayers.concat(layer.view.activeFrameLayers);
-    });
+      var onion = layer.view.onionSkinnedFramesLayers.slice();
+      var main = layer.view.activeFrameLayers.slice();
+
+      // Clipping layers stacked right above this one only show where this layer has paint.
+      var clipped = [];
+      for (var c = i - 1; c >= 0 && mode[c] === 'clip'; c--) {
+        var clipLayer = layers[c];
+        if (!shows(clipLayer)) continue;
+        clipLayer.view.render();
+        onion = onion.concat(clipLayer.view.onionSkinnedFramesLayers);
+        clipLayer.view.activeFrameLayers.forEach(frameLayer => {
+          frameLayer.blendMode = 'source-atop';
+          clipped.push(frameLayer);
+        });
+      }
+      if (clipped.length && main.length) {
+        var clipGroup = makeGroup('clipgroup');
+        clipGroup.addChildren(main.concat(clipped));
+        main = [clipGroup];
+      }
+
+      var maskIndex = maskOf(i);
+      if (maskIndex !== -1) {
+        (waiting[maskIndex] = waiting[maskIndex] || []).push({onion: onion, main: main});
+      } else {
+        this.frameLayers = this.frameLayers.concat(onion, main);
+      }
+    }
   }
+
 
 };
 /*
@@ -63838,6 +64016,7 @@ Wick.View.Layer = class extends Wick.View {
       this.activeFrameLayers.push(frame.view.objectsLayer);
       frame.view.objectsLayer.locked = false;
       frame.view.objectsLayer.opacity = 1.0;
+      frame.view.objectsLayer.blendMode = 'normal';
     } // Disable mouse events on layers if they are locked.
     // (However, this is ignored while the project is playing so the interact tool always works.)
     // (This is also ignored for layers which are inside clips and not the current focus.)
@@ -63886,6 +64065,7 @@ Wick.View.Layer = class extends Wick.View {
     var opacity = onionMult * Wick.View.Layer.BASE_ONION_OPACITY;
     frame.view.objectsLayer.locked = true;
     frame.view.objectsLayer.opacity = opacity;
+    frame.view.objectsLayer.blendMode = 'normal';
   }
 
 };
@@ -65992,6 +66172,21 @@ Wick.GUIElement.Layer = class extends Wick.GUIElement {
         this.projectWasModified();
       }
     });
+    this.maskButton = new Wick.GUIElement.LayerButton(model, {
+      toggledTooltip: 'Clipping and masking',
+      untoggledTooltip: 'Clipping and masking',
+      toggledIcon: 'layer_mode',
+      untoggledIcon: 'layer_mode',
+      isToggledFn: () => {
+        return !!this.model.maskMode;
+      },
+      clickFn: () => {
+        this.model.activate();
+        var hooks = Wick.GUIElement.editorHooks;
+        if (hooks && hooks.openLayerMode) hooks.openLayerMode(this.model);
+        this.projectWasModified();
+      }
+    });
     this.guideButton = new Wick.GUIElement.LayerButton(model, {
       toggledTooltip: 'Guide layer: left out of exports. Tap to export it again.',
       untoggledTooltip: 'Make this a guide layer (left out of exports)',
@@ -66065,6 +66260,16 @@ Wick.GUIElement.Layer = class extends Wick.GUIElement {
       ctx.fillText('GUIDE', width - ctx.measureText('GUIDE').width - 8, height - 6);
     }
 
+    // Clipping and mask layers: a colored edge and a small tag
+    var maskMode = this.model.maskMode;
+    if (maskMode) {
+      var tagText = {clip: 'CLIP ↓', mask: 'MASK', masked: 'MASKED'}[maskMode];
+      ctx.fillStyle = maskMode === 'clip' ? '#d9822b' : '#8a4fd6';
+      ctx.fillRect(0, 3, 5, height - 6);
+      ctx.font = 'bold 9px ' + Wick.GUIElement.LAYER_LABEL_FONT_FAMILY;
+      ctx.fillText(tagText, width - ctx.measureText(tagText).width - 8, 11);
+    }
+
     ctx.restore(); // Label text
 
     var maxWidth = Wick.GUIElement.LAYERS_CONTAINER_WIDTH - 10;
@@ -66074,7 +66279,7 @@ Wick.GUIElement.Layer = class extends Wick.GUIElement {
     ctx.clip();
     ctx.font = "16px " + Wick.GUIElement.LAYER_LABEL_FONT_FAMILY;
     ctx.fillStyle = this.model.isActive ? Wick.GUIElement.LAYER_LABEL_ACTIVE_FONT_COLOR : Wick.GUIElement.LAYER_LABEL_INACTIVE_FONT_COLOR;
-    ctx.fillText(this.model.name, 77, this.gridCellHeight / 2 + 6);
+    ctx.fillText(this.model.name, 97, this.gridCellHeight / 2 + 6);
     ctx.restore(); // Buttons
 
     ctx.save();
@@ -66088,6 +66293,10 @@ Wick.GUIElement.Layer = class extends Wick.GUIElement {
     ctx.save();
     ctx.translate(60, this.gridCellHeight / 2);
     this.guideButton.draw();
+    ctx.restore();
+    ctx.save();
+    ctx.translate(80, this.gridCellHeight / 2);
+    this.maskButton.draw();
     ctx.restore(); // Reordering ghost
 
     if (this.mouseState === 'down') {
